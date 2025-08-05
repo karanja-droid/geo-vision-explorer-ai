@@ -2,19 +2,14 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Mountain, 
-  Calendar, 
-  User, 
-  Edit, 
-  Trash2,
-  FileText,
-  ExternalLink
-} from "lucide-react";
+import { ArrowLeft, Edit, Trash2, MapPin, Ruler, Mountain, FileText, Plus, Brain, Gem, Calendar, ExternalLink } from "lucide-react";
 import { Site } from "@/hooks/useSites";
 import { useProjects } from "@/hooks/useProjects";
+import { useMineralDeposits } from "@/hooks/useMineralDeposits";
+import { usePredictions } from "@/hooks/usePredictions";
+import { useActivityLogs } from "@/hooks/useActivityLogs";
+import MineralDepositForm from "./MineralDepositForm";
+import PredictionForm from "./PredictionForm";
 
 interface SiteDetailsProps {
   site: Site;
@@ -24,7 +19,13 @@ interface SiteDetailsProps {
 }
 
 const SiteDetails: React.FC<SiteDetailsProps> = ({ site, onBack, onEdit, onDelete }) => {
+  const [showMineralDepositForm, setShowMineralDepositForm] = React.useState(false);
+  const [showPredictionForm, setShowPredictionForm] = React.useState(false);
+  
   const { projects } = useProjects();
+  const { deposits, loading: depositsLoading } = useMineralDeposits(site.id);
+  const { predictions, loading: predictionsLoading } = usePredictions(site.id);
+  const { createLog } = useActivityLogs();
   
   const project = projects.find(p => p.id === site.project_id);
 
@@ -52,9 +53,35 @@ const SiteDetails: React.FC<SiteDetailsProps> = ({ site, onBack, onEdit, onDelet
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this site? This action cannot be undone.')) {
+      createLog({
+        entity_type: 'site',
+        entity_id: site.id,
+        action: 'deleted',
+        details: { site_name: site.name }
+      });
       onDelete(site.id);
       onBack();
     }
+  };
+
+  const handleDepositFormSuccess = () => {
+    setShowMineralDepositForm(false);
+    createLog({
+      entity_type: 'mineral_deposit',
+      entity_id: site.id,
+      action: 'created',
+      details: { site_name: site.name }
+    });
+  };
+
+  const handlePredictionFormSuccess = () => {
+    setShowPredictionForm(false);
+    createLog({
+      entity_type: 'prediction',
+      entity_id: site.id,
+      action: 'created',
+      details: { site_name: site.name }
+    });
   };
 
   return (
@@ -233,41 +260,133 @@ const SiteDetails: React.FC<SiteDetailsProps> = ({ site, onBack, onEdit, onDelet
 
       {/* Additional Information Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Placeholder for Mineral Deposits */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-slate-100">Mineral Deposits</CardTitle>
-            <CardDescription className="text-slate-400">
-              Associated mineral deposits and findings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <p className="text-slate-400">No mineral deposits recorded yet</p>
-              <Button variant="outline" className="mt-4 border-slate-600 text-slate-300">
-                Add Deposit
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Mineral Deposits */}
+        {showMineralDepositForm ? (
+          <MineralDepositForm 
+            siteId={site.id}
+            onSuccess={handleDepositFormSuccess}
+            onCancel={() => setShowMineralDepositForm(false)}
+          />
+        ) : (
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-slate-100 flex items-center gap-2">
+                  <Gem className="w-5 h-5 text-amber-400" />
+                  Mineral Deposits ({deposits.length})
+                </CardTitle>
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowMineralDepositForm(true)}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Deposit
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {depositsLoading ? (
+                <p className="text-slate-400">Loading mineral deposits...</p>
+              ) : deposits.length === 0 ? (
+                <p className="text-slate-400">No mineral deposits recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {deposits.map((deposit) => (
+                    <div key={deposit.id} className="p-4 bg-slate-700/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-slate-200">{deposit.mineral_type}</h4>
+                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+                          {deposit.confidence_level ? `${deposit.confidence_level}% confidence` : 'No confidence data'}
+                        </Badge>
+                      </div>
+                      {deposit.grade_estimate && (
+                        <p className="text-sm text-slate-400">Grade: {deposit.grade_estimate} g/t</p>
+                      )}
+                      {deposit.tonnage_estimate && (
+                        <p className="text-sm text-slate-400">Tonnage: {deposit.tonnage_estimate.toLocaleString()} tonnes</p>
+                      )}
+                      {deposit.notes && (
+                        <p className="text-sm text-slate-400 mt-2">{deposit.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Placeholder for Predictions */}
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-slate-100">AI Predictions</CardTitle>
-            <CardDescription className="text-slate-400">
-              ML predictions and analysis results
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <p className="text-slate-400">No predictions available yet</p>
-              <Button variant="outline" className="mt-4 border-slate-600 text-slate-300">
-                Run Analysis
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* AI Predictions */}
+        {showPredictionForm ? (
+          <PredictionForm 
+            siteId={site.id}
+            onSuccess={handlePredictionFormSuccess}
+            onCancel={() => setShowPredictionForm(false)}
+          />
+        ) : (
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-slate-100 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                  AI Predictions ({predictions.length})
+                </CardTitle>
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowPredictionForm(true)}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Run Analysis
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {predictionsLoading ? (
+                <p className="text-slate-400">Loading predictions...</p>
+              ) : predictions.length === 0 ? (
+                <p className="text-slate-400">No predictions generated yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {predictions.map((prediction) => (
+                    <div key={prediction.id} className="p-4 bg-slate-700/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-slate-200">
+                          {prediction.prediction_data.mineral_type || 'Unknown Mineral'}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`border ${
+                            prediction.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                            prediction.status === 'processing' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+                            prediction.status === 'failed' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                            'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                          }`}>
+                            {prediction.status}
+                          </Badge>
+                          {prediction.confidence_score && (
+                            <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                              {prediction.confidence_score}% confidence
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {prediction.prediction_data.expected_yield && (
+                        <p className="text-sm text-slate-400">Expected Yield: {prediction.prediction_data.expected_yield}</p>
+                      )}
+                      {prediction.prediction_data.risk_level && (
+                        <p className="text-sm text-slate-400">Risk Level: {prediction.prediction_data.risk_level}</p>
+                      )}
+                      {prediction.prediction_data.recommendation && (
+                        <p className="text-sm text-slate-400 mt-2">{prediction.prediction_data.recommendation}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
