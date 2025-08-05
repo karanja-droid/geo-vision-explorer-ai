@@ -50,32 +50,81 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/(?=.*[a-z])/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!/(?=.*[A-Z])/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!/(?=.*\d)/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+    if (!/(?=.*[@$!%*?&])/.test(password)) {
+      return 'Password must contain at least one special character (@$!%*?&)';
+    }
+    return null;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    const redirectUrl = `${window.location.origin}/`;
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          display_name: displayName,
-          role: role
-        }
-      }
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess('Check your email for the confirmation link!');
+    // Validate password strength
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            display_name: displayName,
+            role: role
+          }
+        }
+      });
+
+      if (error) {
+        // Provide user-friendly error messages
+        if (error.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else if (error.message.includes('Invalid email')) {
+          setError('Please enter a valid email address.');
+        } else if (error.message.includes('Password')) {
+          setError('Please ensure your password meets the security requirements.');
+        } else {
+          setError('Unable to create account. Please try again.');
+        }
+      } else {
+        setSuccess('Check your email for the confirmation link!');
+      }
+    } catch (error) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -84,15 +133,29 @@ const Auth = () => {
     setError(null);
     setSuccess(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        // Provide user-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials and try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and confirm your account before signing in.');
+        } else if (error.message.includes('Too many requests')) {
+          setError('Too many sign-in attempts. Please wait a moment and try again.');
+        } else {
+          setError('Unable to sign in. Please try again.');
+        }
+      }
+    } catch (error) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
