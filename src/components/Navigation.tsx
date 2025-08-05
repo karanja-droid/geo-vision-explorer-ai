@@ -38,7 +38,7 @@ const Navigation = () => {
               Projects
             </Button>
             <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
-              Exploration
+              Sites
             </Button>
             <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
               Analytics
