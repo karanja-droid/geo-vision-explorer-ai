@@ -14,11 +14,18 @@ import {
   RotateCcw,
   Filter
 } from "lucide-react";
+import { useMineralDeposits } from '@/hooks/useMineralDeposits';
+import { usePredictions } from '@/hooks/usePredictions';
 
 const GeospatialViewer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentDate, setCurrentDate] = useState(0);
   const [selectedLayer, setSelectedLayer] = useState("satellite");
+  const { getDepositStats } = useMineralDeposits();
+  const { getPredictionStats } = usePredictions();
+
+  const depositStats = getDepositStats();
+  const predictionStats = getPredictionStats();
 
   const timeSeriesData = [
     { date: "2024-01", label: "Jan 2024", changes: "Baseline" },
@@ -162,8 +169,8 @@ const GeospatialViewer = () => {
               <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30">
                 Vegetation Index: 0.68
               </Badge>
-              <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
-                Mineral Confidence: 87%
+            <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                Mineral Confidence: {predictionStats.avgConfidence}%
               </Badge>
               <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
                 Change Rate: +12%
@@ -189,10 +196,10 @@ const GeospatialViewer = () => {
 
             <div className="p-4 bg-slate-700/30 rounded-lg">
               <h4 className="font-medium text-slate-200 mb-2">Mineral Signatures</h4>
-              <p className="text-sm text-slate-400 mb-2">3 potential mineral deposits identified</p>
+              <p className="text-sm text-slate-400 mb-2">{depositStats.totalDeposits} potential mineral deposits identified</p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-xs text-yellow-400">High Confidence</span>
+                <span className="text-xs text-yellow-400">{depositStats.avgConfidence}% Avg Confidence</span>
               </div>
             </div>
 

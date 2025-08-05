@@ -16,23 +16,21 @@ import {
   Edit,
   Send
 } from "lucide-react";
+import { useCollaboration } from '@/hooks/useCollaboration';
 
 const RealtimeCollaboration = () => {
   const [message, setMessage] = useState('');
-  const [activeUsers] = useState([
-    { id: 1, name: "Dr. Sarah Chen", role: "Senior Geologist", avatar: "SC", status: "online", activity: "Analyzing Site Alpha" },
-    { id: 2, name: "Mike Rodriguez", role: "GIS Specialist", avatar: "MR", status: "online", activity: "Updating mineral layers" },
-    { id: 3, name: "Emily Zhang", role: "Data Scientist", avatar: "EZ", status: "away", activity: "Training ML models" },
-    { id: 4, name: "Dr. James Wilson", role: "Field Geologist", avatar: "JW", status: "online", activity: "Site survey in progress" }
-  ]);
+  const { activeUsers, activities, logActivity } = useCollaboration();
 
-  const [recentActivity] = useState([
-    { user: "Dr. Sarah Chen", action: "Updated mineral confidence levels", time: "2 minutes ago", type: "update" },
-    { user: "Mike Rodriguez", action: "Added new geological layer", time: "5 minutes ago", type: "addition" },
-    { user: "Emily Zhang", action: "Completed AI model training", time: "12 minutes ago", type: "completion" },
-    { user: "Dr. James Wilson", action: "Uploaded field survey data", time: "18 minutes ago", type: "upload" }
-  ]);
+  // Transform activities for display
+  const recentActivity = activities.slice(0, 10).map(activity => ({
+    user: "Unknown User", // Would be populated with user profile data
+    action: activity.action,
+    time: new Date(activity.created_at).toLocaleString(),
+    type: activity.entity_type
+  }));
 
+  // Mock messages for now - would be from real-time messaging system
   const [messages] = useState([
     { id: 1, user: "Dr. Sarah Chen", message: "The gold prospects in Sector 7 look very promising", time: "10:23 AM", avatar: "SC" },
     { id: 2, user: "Mike Rodriguez", message: "I've updated the mineral density layers with the latest satellite data", time: "10:25 AM", avatar: "MR" },
@@ -60,7 +58,13 @@ const RealtimeCollaboration = () => {
 
   const sendMessage = () => {
     if (message.trim()) {
-      // In a real app, this would send the message via WebSocket
+      // Log the message activity
+      logActivity({
+        entity_type: 'message',
+        entity_id: 'chat',
+        action: 'send_message',
+        details: { message: message.trim() }
+      });
       console.log("Sending message:", message);
       setMessage('');
     }

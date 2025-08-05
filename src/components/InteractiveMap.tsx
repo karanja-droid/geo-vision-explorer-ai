@@ -12,16 +12,38 @@ import {
   Filter,
   MoreVertical
 } from "lucide-react";
+import { useSites } from '@/hooks/useSites';
+import { usePredictions } from '@/hooks/usePredictions';
 
 const InteractiveMap = () => {
   const [selectedLayer, setSelectedLayer] = useState("satellite");
+  const { sites } = useSites();
+  const { predictions } = usePredictions();
   
-  const mineralSites = [
-    { id: 1, name: "Site Alpha", lat: 30, lng: 120, mineral: "Gold", confidence: "High", x: "35%", y: "25%" },
-    { id: 2, name: "Site Beta", lat: -20, lng: 140, mineral: "Lithium", confidence: "Very High", x: "70%", y: "60%" },
-    { id: 3, name: "Site Gamma", lat: 45, lng: 100, mineral: "Copper", confidence: "Medium", x: "25%", y: "15%" },
-    { id: 4, name: "Site Delta", lat: -35, lng: 150, mineral: "Iron", confidence: "High", x: "80%", y: "75%" },
-  ];
+  // Transform real sites data for map display
+  const mineralSites = sites.slice(0, 8).map((site, index) => {
+    const sitePredictions = predictions.filter(p => p.site_id === site.id);
+    const highestConfidence = sitePredictions.reduce((max, pred) => 
+      (pred.confidence_score || 0) > max ? (pred.confidence_score || 0) : max, 0
+    );
+    
+    const confidenceLevel = highestConfidence >= 90 ? "Very High" : 
+                           highestConfidence >= 70 ? "High" : "Medium";
+    
+    // Generate pseudo-random but consistent positions based on site ID
+    const hash = site.id.split('').reduce((a, b) => (a << 5) - a + b.charCodeAt(0), 0);
+    const x = Math.abs(hash % 80) + 10; // 10-90%
+    const y = Math.abs((hash * 7) % 80) + 10; // 10-90%
+    
+    return {
+      id: site.id,
+      name: site.name,
+      mineral: sitePredictions[0]?.prediction_data?.mineral_type || "Unknown",
+      confidence: confidenceLevel,
+      x: `${x}%`,
+      y: `${y}%`
+    };
+  });
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {
@@ -66,7 +88,7 @@ const InteractiveMap = () => {
               Satellite View
             </Badge>
             <Badge variant="outline" className="border-slate-600 text-slate-400">
-              4 Active Sites
+              {mineralSites.length} Active Sites
             </Badge>
           </div>
           <div className="flex items-center gap-1">

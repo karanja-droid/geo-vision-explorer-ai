@@ -15,48 +15,46 @@ import {
   Target,
   BarChart3
 } from "lucide-react";
+import { useAIModels } from '@/hooks/useAIModels';
+import { usePredictions } from '@/hooks/usePredictions';
+import { useSites } from '@/hooks/useSites';
 
 const AIAnalysisPanel = () => {
   const [analysisRunning, setAnalysisRunning] = useState(false);
+  const { models, getModelStats, getActiveModels } = useAIModels();
+  const { predictions, getPredictionStats, getHighConfidencePredictions } = usePredictions();
+  const { sites } = useSites();
 
-  const runAnalysis = () => {
+  const runAnalysis = async () => {
     setAnalysisRunning(true);
+    // Simulate analysis process
     setTimeout(() => setAnalysisRunning(false), 3000);
   };
 
-  const modelPerformance = [
-    { name: "Gold Prediction Model", accuracy: 94.7, status: "Active", lastTrained: "2 days ago" },
-    { name: "Lithium Detection Model", accuracy: 91.2, status: "Training", lastTrained: "6 hours ago" },
-    { name: "Copper Anomaly Model", accuracy: 88.9, status: "Active", lastTrained: "1 week ago" },
-    { name: "Iron Ore Classification", accuracy: 96.1, status: "Active", lastTrained: "3 days ago" }
-  ];
+  const modelStats = getModelStats();
+  const predictionStats = getPredictionStats();
+  const activeModels = getActiveModels();
+  const highConfidencePredictions = getHighConfidencePredictions(80);
 
-  const predictions = [
-    { 
-      location: "Sector 7-Alpha", 
-      mineral: "Gold", 
-      confidence: 87, 
-      expectedYield: "High",
-      riskLevel: "Low",
-      recommendation: "Immediate Survey"
-    },
-    { 
-      location: "Sector 12-Beta", 
-      mineral: "Lithium", 
-      confidence: 92, 
-      expectedYield: "Very High",
-      riskLevel: "Medium",
-      recommendation: "Full Exploration"
-    },
-    { 
-      location: "Sector 3-Gamma", 
-      mineral: "Copper", 
-      confidence: 74, 
-      expectedYield: "Medium",
-      riskLevel: "Low",
-      recommendation: "Further Analysis"
-    }
-  ];
+  // Transform real data for display
+  const modelPerformance = activeModels.map(model => ({
+    name: model.name,
+    accuracy: model.performance_metrics?.accuracy || 0,
+    status: model.is_active ? "Active" : "Training",
+    lastTrained: new Date(model.updated_at).toLocaleDateString()
+  }));
+
+  const transformedPredictions = highConfidencePredictions.slice(0, 3).map(prediction => {
+    const site = sites.find(s => s.id === prediction.site_id);
+    return {
+      location: site?.name || "Unknown Site",
+      mineral: prediction.prediction_data?.mineral_type || "Unknown",
+      confidence: prediction.confidence_score || 0,
+      expectedYield: prediction.prediction_data?.expected_yield || "Medium",
+      riskLevel: prediction.prediction_data?.risk_level || "Medium",
+      recommendation: prediction.prediction_data?.recommendation || "Further Analysis"
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -93,7 +91,7 @@ const AIAnalysisPanel = () => {
               </Button>
               <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30">
                 <CheckCircle className="w-3 h-3 mr-1" />
-                4 Models Active
+                {modelStats.activeModels} Models Active
               </Badge>
             </div>
             <div className="text-right">
@@ -154,7 +152,7 @@ const AIAnalysisPanel = () => {
 
             <TabsContent value="predictions" className="mt-4">
               <div className="space-y-3">
-                {predictions.map((prediction, index) => (
+                {transformedPredictions.map((prediction, index) => (
                   <div key={index} className="p-4 bg-slate-700/50 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <div>
