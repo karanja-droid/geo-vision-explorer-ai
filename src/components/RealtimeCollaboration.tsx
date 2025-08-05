@@ -16,26 +16,33 @@ import {
   Edit,
   Send
 } from "lucide-react";
-import { useCollaboration } from '@/hooks/useCollaboration';
+import { useRealtimeCollaboration } from '@/hooks/useRealtimeCollaboration';
+import { useProjects } from '@/hooks/useProjects';
 
-const RealtimeCollaboration = () => {
-  const [message, setMessage] = useState('');
-  const { activeUsers, activities, logActivity } = useCollaboration();
+const RealtimeCollaboration = ({ projectId }: { projectId?: string }) => {
+  const [newMessage, setNewMessage] = useState('');
+  const { projects } = useProjects();
+  const currentProject = projectId ? projects.find(p => p.id === projectId) : projects[0];
+  const { messages, presence, sendMessage, loading } = useRealtimeCollaboration(currentProject?.id);
 
-  // Transform activities for display
-  const recentActivity = activities.slice(0, 10).map(activity => ({
-    user: "Unknown User", // Would be populated with user profile data
-    action: activity.action,
-    time: new Date(activity.created_at).toLocaleString(),
-    type: activity.entity_type
+  // Transform presence data for display
+  const activeUsers = presence.map(p => ({
+    id: p.user_id,
+    name: p.profiles?.display_name || 'Unknown User',
+    avatar: p.profiles?.display_name?.split(' ').map(n => n[0]).join('') || 'U',
+    status: p.status,
+    role: 'Team Member',
+    activity: p.current_page ? `Viewing ${p.current_page}` : 'Active'
   }));
 
-  // Mock messages for now - would be from real-time messaging system
-  const [messages] = useState([
-    { id: 1, user: "Dr. Sarah Chen", message: "The gold prospects in Sector 7 look very promising", time: "10:23 AM", avatar: "SC" },
-    { id: 2, user: "Mike Rodriguez", message: "I've updated the mineral density layers with the latest satellite data", time: "10:25 AM", avatar: "MR" },
-    { id: 3, user: "Emily Zhang", message: "AI model is showing 94% confidence for lithium deposits in the northern region", time: "10:28 AM", avatar: "EZ" }
-  ]);
+  // Transform messages for display
+  const chatMessages = messages.map(msg => ({
+    id: msg.id,
+    user: msg.profiles?.display_name || 'Unknown User',
+    message: msg.message,
+    time: new Date(msg.created_at).toLocaleTimeString(),
+    avatar: msg.profiles?.display_name?.split(' ').map(n => n[0]).join('') || 'U'
+  }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -56,17 +63,10 @@ const RealtimeCollaboration = () => {
     }
   };
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      // Log the message activity
-      logActivity({
-        entity_type: 'message',
-        entity_id: 'chat',
-        action: 'send_message',
-        details: { message: message.trim() }
-      });
-      console.log("Sending message:", message);
-      setMessage('');
+  const handleSendMessage = async () => {
+    if (newMessage.trim() && currentProject) {
+      await sendMessage(newMessage.trim());
+      setNewMessage('');
     }
   };
 
@@ -140,7 +140,7 @@ const RealtimeCollaboration = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
-            {messages.map((msg) => (
+            {chatMessages.map((msg) => (
               <div key={msg.id} className="flex items-start gap-3">
                 <Avatar className="w-8 h-8">
                   <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs">
@@ -162,13 +162,19 @@ const RealtimeCollaboration = () => {
 
           <div className="flex items-center gap-2">
             <Input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type your message..."
               className="bg-slate-700 border-slate-600 text-slate-200"
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              disabled={loading || !currentProject}
             />
-            <Button onClick={sendMessage} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button 
+              onClick={handleSendMessage} 
+              size="sm" 
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={loading || !currentProject || !newMessage.trim()}
+            >
               <Send className="w-4 h-4" />
             </Button>
           </div>
@@ -188,20 +194,27 @@ const RealtimeCollaboration = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 bg-slate-700/30 rounded-lg">
-                <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400">
-                  {getActivityIcon(activity.type)}
+            {activeUsers.length > 0 ? (
+              activeUsers.map((user, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-slate-700/30 rounded-lg">
+                  <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400">
+                    <Activity className="w-3 h-3" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm text-slate-200">
+                      <span className="font-medium">{user.name}</span>
+                    </p>
+                    <p className="text-sm text-slate-300">{user.activity}</p>
+                    <p className="text-xs text-slate-500">{user.status}</p>
+                  </div>
                 </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm text-slate-200">
-                    <span className="font-medium">{activity.user}</span>
-                  </p>
-                  <p className="text-sm text-slate-300">{activity.action}</p>
-                  <p className="text-xs text-slate-500">{activity.time}</p>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No active users currently</p>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="mt-6 pt-4 border-t border-slate-700">
