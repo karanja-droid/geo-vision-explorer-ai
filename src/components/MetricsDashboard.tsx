@@ -9,11 +9,45 @@ import {
   Zap, 
   Activity,
   Target,
-  Database
+  Database,
+  FolderOpen
 } from "lucide-react";
+import { useProjects } from '@/hooks/useProjects';
 
 const MetricsDashboard = () => {
-  const metrics = [
+  const { projects, loading, getProjectStats } = useProjects();
+  const stats = getProjectStats();
+
+  // Show real data if we have projects, otherwise show mock data
+  const metrics = projects.length > 0 ? [
+    {
+      title: "Total Projects",
+      value: stats.total.toString(),
+      change: "+12%",
+      changeType: "positive",
+      icon: FolderOpen,
+      description: "Active exploration projects",
+      color: "blue"
+    },
+    {
+      title: "Active Projects",
+      value: stats.active.toString(),
+      change: "+2.3%",
+      changeType: "positive",
+      icon: Activity,
+      description: "Currently in progress",
+      color: "green"
+    },
+    {
+      title: "Total Budget",
+      value: `$${(stats.totalBudget / 1000000).toFixed(1)}M`,
+      change: "+15%",
+      changeType: "positive",
+      icon: TrendingUp,
+      description: "Allocated funds",
+      color: "purple"
+    }
+  ] : [
     {
       title: "Active Exploration Sites",
       value: "247",

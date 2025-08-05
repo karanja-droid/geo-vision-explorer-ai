@@ -12,6 +12,7 @@ import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import MetricsDashboard from "@/components/MetricsDashboard";
 import GeospatialViewer from "@/components/GeospatialViewer";
 import RealtimeCollaboration from "@/components/RealtimeCollaboration";
+import ProjectDashboard from "@/components/ProjectDashboard";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -58,9 +59,12 @@ const Index = () => {
       {/* Main Content */}
       <div className="px-6 py-8 max-w-7xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-800 border border-slate-700">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-800 border border-slate-700">
             <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600">
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="data-[state=active]:bg-indigo-600">
+              Projects
             </TabsTrigger>
             <TabsTrigger value="geospatial" className="data-[state=active]:bg-green-600">
               Geospatial
@@ -111,6 +115,10 @@ const Index = () => {
 
               <InteractiveMap />
             </div>
+          </TabsContent>
+
+          <TabsContent value="projects" className="mt-8">
+            <ProjectDashboard />
           </TabsContent>
 
           <TabsContent value="geospatial" className="mt-8">

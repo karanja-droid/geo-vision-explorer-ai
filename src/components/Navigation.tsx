@@ -35,13 +35,13 @@ const Navigation = () => {
               Dashboard
             </Button>
             <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
+              Projects
+            </Button>
+            <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
               Exploration
             </Button>
             <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
               Analytics
-            </Button>
-            <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
-              Reports
             </Button>
           </div>
 
