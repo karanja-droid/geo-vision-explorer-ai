@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -8,11 +9,11 @@ import {
   Settings, 
   User,
   Menu,
-  Shield,
-  Zap
+  LogOut
 } from "lucide-react";
 
 const Navigation = () => {
+  const { user, signOut } = useAuth();
   return (
     <nav className="border-b border-slate-700 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
@@ -70,9 +71,17 @@ const Navigation = () => {
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="text-sm">
-                <p className="text-slate-200 font-medium">Dr. Sarah Chen</p>
-                <p className="text-slate-400 text-xs">Senior Geologist</p>
+                <p className="text-slate-200 font-medium">{user?.email}</p>
+                <p className="text-slate-400 text-xs">Authenticated User</p>
               </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={signOut}
+                className="text-slate-400 hover:text-white ml-2"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </div>
