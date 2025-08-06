@@ -44,18 +44,18 @@ const EnhancedMetrics = () => {
   const depositsByType = getDepositsByMineralType();
 
   // Transform data for charts
-  const siteTypeData = Object.entries(siteStats.typeBreakdown).map(([type, count]) => ({
-    name: type.charAt(0).toUpperCase() + type.slice(1),
-    value: count,
-    fill: type === 'drilling' ? '#ef4444' : 
-          type === 'survey' ? '#3b82f6' : 
-          type === 'sampling' ? '#10b981' : '#f59e0b'
-  }));
+  const siteTypeData = [
+    { name: 'Drilling', value: siteStats.drilling, fill: '#ef4444' },
+    { name: 'Sampling', value: siteStats.sampling, fill: '#10b981' },
+    { name: 'Geophysics', value: siteStats.geophysics, fill: '#3b82f6' },
+    { name: 'Geochemistry', value: siteStats.geochemistry, fill: '#f59e0b' },
+    { name: 'Remote Sensing', value: siteStats.remote_sensing, fill: '#8b5cf6' }
+  ];
 
   const mineralDistribution = Object.entries(depositsByType).map(([mineral, deposits]) => ({
     name: mineral.charAt(0).toUpperCase() + mineral.slice(1),
     count: deposits.length,
-    avgConfidence: Math.round(deposits.reduce((sum, d) => sum + d.confidence, 0) / deposits.length),
+    avgConfidence: Math.round(deposits.reduce((sum, d) => sum + (d.confidence_level || 0), 0) / deposits.length) || 0,
     fill: mineral === 'gold' ? '#fbbf24' :
           mineral === 'copper' ? '#f97316' :
           mineral === 'lithium' ? '#a855f7' :
@@ -73,11 +73,11 @@ const EnhancedMetrics = () => {
   ];
 
   const confidenceDistribution = [
-    { range: '90-100%', count: deposits.filter(d => d.confidence >= 90).length },
-    { range: '80-89%', count: deposits.filter(d => d.confidence >= 80 && d.confidence < 90).length },
-    { range: '70-79%', count: deposits.filter(d => d.confidence >= 70 && d.confidence < 80).length },
-    { range: '60-69%', count: deposits.filter(d => d.confidence >= 60 && d.confidence < 70).length },
-    { range: '<60%', count: deposits.filter(d => d.confidence < 60).length }
+    { range: '90-100%', count: deposits.filter(d => (d.confidence_level || 0) >= 90).length },
+    { range: '80-89%', count: deposits.filter(d => (d.confidence_level || 0) >= 80 && (d.confidence_level || 0) < 90).length },
+    { range: '70-79%', count: deposits.filter(d => (d.confidence_level || 0) >= 70 && (d.confidence_level || 0) < 80).length },
+    { range: '60-69%', count: deposits.filter(d => (d.confidence_level || 0) >= 60 && (d.confidence_level || 0) < 70).length },
+    { range: '<60%', count: deposits.filter(d => (d.confidence_level || 0) < 60).length }
   ];
 
   const chartConfig = {
@@ -131,7 +131,7 @@ const EnhancedMetrics = () => {
                 <p className="text-2xl font-bold text-slate-100">{predictions.length}</p>
                 <p className="text-yellow-400 text-sm flex items-center gap-1">
                   <Activity className="w-3 h-3" />
-                  {predictionStats.completedPredictions} completed
+                  {predictionStats.completed} completed
                 </p>
               </div>
               <LineChartIcon className="w-8 h-8 text-yellow-400" />

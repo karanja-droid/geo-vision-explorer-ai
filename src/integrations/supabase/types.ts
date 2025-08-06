@@ -105,6 +105,39 @@ export type Database = {
           },
         ]
       }
+      collaboration_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          message_type: string | null
+          metadata: Json | null
+          project_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          message_type?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          message_type?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       collaboration_sessions: {
         Row: {
           created_at: string
@@ -438,6 +471,42 @@ export type Database = {
           proj4text?: string | null
           srid?: number
           srtext?: string | null
+        }
+        Relationships: []
+      }
+      user_presence: {
+        Row: {
+          created_at: string
+          current_page: string | null
+          cursor_position: Json | null
+          id: string
+          last_seen: string
+          project_id: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_page?: string | null
+          cursor_position?: Json | null
+          id?: string
+          last_seen?: string
+          project_id?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_page?: string | null
+          cursor_position?: Json | null
+          id?: string
+          last_seen?: string
+          project_id?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
