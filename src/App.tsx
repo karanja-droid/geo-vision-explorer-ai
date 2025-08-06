@@ -14,6 +14,7 @@ import Collaboration from "./pages/Collaboration";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { PricingPage } from "./components/PricingPage";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/collaboration" element={<Collaboration />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/pricing" element={<PricingPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </ProtectedRoute>

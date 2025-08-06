@@ -1,6 +1,7 @@
 import React from 'react';
 import MetricsDashboard from '@/components/MetricsDashboard';
 import InteractiveMap from '@/components/InteractiveMap';
+import { TrialBanner } from '@/components/TrialBanner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, TrendingUp, Zap } from "lucide-react";
@@ -9,6 +10,9 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="container mx-auto px-4 py-8">
+        {/* Trial Banner */}
+        <TrialBanner />
+        
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Dashboard Overview</h1>

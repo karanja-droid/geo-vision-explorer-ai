@@ -246,6 +246,51 @@ export type Database = {
           },
         ]
       }
+      feature_flags: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          metadata: Json | null
+          module: Database["public"]["Enums"]["feature_module"] | null
+          name: string
+          tier_restrictions:
+            | Database["public"]["Enums"]["subscription_tier"][]
+            | null
+          updated_at: string
+          user_restrictions: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          metadata?: Json | null
+          module?: Database["public"]["Enums"]["feature_module"] | null
+          name: string
+          tier_restrictions?:
+            | Database["public"]["Enums"]["subscription_tier"][]
+            | null
+          updated_at?: string
+          user_restrictions?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          metadata?: Json | null
+          module?: Database["public"]["Enums"]["feature_module"] | null
+          name?: string
+          tier_restrictions?:
+            | Database["public"]["Enums"]["subscription_tier"][]
+            | null
+          updated_at?: string
+          user_restrictions?: string[] | null
+        }
+        Relationships: []
+      }
       mineral_deposits: {
         Row: {
           confidence_level: number | null
@@ -406,38 +451,53 @@ export type Database = {
       projects: {
         Row: {
           budget: number | null
+          coordinates: unknown | null
+          country: string | null
           created_at: string
           description: string | null
           end_date: string | null
+          geology_type: string | null
           id: string
           name: string
           owner_id: string
+          province: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
+          target_minerals: string[] | null
           updated_at: string
         }
         Insert: {
           budget?: number | null
+          coordinates?: unknown | null
+          country?: string | null
           created_at?: string
           description?: string | null
           end_date?: string | null
+          geology_type?: string | null
           id?: string
           name: string
           owner_id: string
+          province?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          target_minerals?: string[] | null
           updated_at?: string
         }
         Update: {
           budget?: number | null
+          coordinates?: unknown | null
+          country?: string | null
           created_at?: string
           description?: string | null
           end_date?: string | null
+          geology_type?: string | null
           id?: string
           name?: string
           owner_id?: string
+          province?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          target_minerals?: string[] | null
           updated_at?: string
         }
         Relationships: [
@@ -471,6 +531,81 @@ export type Database = {
           proj4text?: string | null
           srid?: number
           srtext?: string | null
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_cycle: string | null
+          created_at: string
+          id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          trial_end_date: string | null
+          trial_start_date: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          billing_cycle?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          trial_end_date?: string | null
+          trial_start_date?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          billing_cycle?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          trial_end_date?: string | null
+          trial_start_date?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      usage_metrics: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          metadata: Json | null
+          metric_type: string
+          period_end: string
+          period_start: string
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_type: string
+          period_end: string
+          period_start: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_type?: string
+          period_end?: string
+          period_start?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2315,6 +2450,22 @@ export type Database = {
       }
     }
     Enums: {
+      feature_module:
+        | "exploration"
+        | "visualization_2d"
+        | "visualization_3d"
+        | "reporting"
+        | "collaboration"
+        | "drill_management"
+        | "lab_workflow"
+        | "resource_estimation"
+        | "geotech_hydro"
+        | "environment_social"
+        | "safety"
+        | "logistics"
+        | "finance_portfolio"
+        | "mobile_capture"
+        | "anomaly_detection"
       prediction_status: "pending" | "processing" | "completed" | "failed"
       project_status:
         | "planning"
@@ -2328,6 +2479,11 @@ export type Database = {
         | "geophysics"
         | "geochemistry"
         | "remote_sensing"
+      subscription_tier:
+        | "individual"
+        | "starter_team"
+        | "corporate"
+        | "enterprise"
       user_role:
         | "admin"
         | "geologist"
@@ -2470,6 +2626,23 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      feature_module: [
+        "exploration",
+        "visualization_2d",
+        "visualization_3d",
+        "reporting",
+        "collaboration",
+        "drill_management",
+        "lab_workflow",
+        "resource_estimation",
+        "geotech_hydro",
+        "environment_social",
+        "safety",
+        "logistics",
+        "finance_portfolio",
+        "mobile_capture",
+        "anomaly_detection",
+      ],
       prediction_status: ["pending", "processing", "completed", "failed"],
       project_status: [
         "planning",
@@ -2484,6 +2657,12 @@ export const Constants = {
         "geophysics",
         "geochemistry",
         "remote_sensing",
+      ],
+      subscription_tier: [
+        "individual",
+        "starter_team",
+        "corporate",
+        "enterprise",
       ],
       user_role: [
         "admin",
