@@ -5,8 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { 
   Satellite, 
   Layers, 
@@ -15,17 +13,17 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Filter,
-  Settings
+  Filter
 } from "lucide-react";
 import { useMineralDeposits } from '@/hooks/useMineralDeposits';
 import { usePredictions } from '@/hooks/usePredictions';
+import { supabase } from '@/integrations/supabase/client';
 
 const SatelliteViewer = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
-  const [isTokenSet, setIsTokenSet] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentDate, setCurrentDate] = useState(0);
   const { getDepositStats } = useMineralDeposits();
@@ -50,17 +48,25 @@ const SatelliteViewer = () => {
     { id: 'light-v11', name: 'Light', description: 'Clean vector map' }
   ];
 
-  const handleTokenSubmit = () => {
-    if (mapboxToken.trim()) {
-      setIsTokenSet(true);
+  const fetchTokenAndInitialize = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+      
+      if (error) throw error;
+      if (!data?.token) throw new Error('No token received');
+
+      mapboxgl.accessToken = data.token;
       initializeMap();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load satellite viewer');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const initializeMap = () => {
-    if (!mapContainer.current || !mapboxToken) return;
-
-    mapboxgl.accessToken = mapboxToken;
+    if (!mapContainer.current) return;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -181,46 +187,36 @@ const SatelliteViewer = () => {
     return () => clearInterval(interval);
   }, [isPlaying, timeSeriesData.length]);
 
-  if (!isTokenSet) {
+  useEffect(() => {
+    fetchTokenAndInitialize();
+  }, []);
+
+  if (isLoading) {
     return (
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-foreground flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
-            Satellite Configuration
-          </CardTitle>
-          <CardDescription>
-            Configure Mapbox to enable advanced satellite imagery analysis
-          </CardDescription>
+          <CardTitle className="text-foreground">Loading Satellite Analysis...</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Enter your Mapbox public token to unlock real satellite imagery, terrain analysis, and multi-temporal comparison features.
-          </p>
-          <div className="space-y-2">
-            <Label htmlFor="mapbox-token">Mapbox Public Token</Label>
-            <Input
-              id="mapbox-token"
-              type="text"
-              placeholder="pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJja..."
-              value={mapboxToken}
-              onChange={(e) => setMapboxToken(e.target.value)}
-              className="bg-background border-border"
-            />
-            <p className="text-xs text-muted-foreground">
-              Get your free token at{' '}
-              <a 
-                href="https://mapbox.com/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                mapbox.com
-              </a>
-            </p>
+        <CardContent className="text-center">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-muted-foreground">Initializing satellite viewer</span>
           </div>
-          <Button onClick={handleTokenSubmit} className="w-full">
-            Initialize Satellite Analysis
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground">Satellite Configuration Error</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={fetchTokenAndInitialize} variant="outline">
+            Retry Connection
           </Button>
         </CardContent>
       </Card>

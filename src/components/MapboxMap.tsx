@@ -4,26 +4,21 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { 
   MapPin, 
   Layers, 
-  ZoomIn, 
-  ZoomOut, 
   Satellite,
-  Filter,
-  MoreVertical,
-  Settings
+  Filter
 } from "lucide-react";
 import { useSites } from '@/hooks/useSites';
 import { usePredictions } from '@/hooks/usePredictions';
+import { supabase } from '@/integrations/supabase/client';
 
 const MapboxMap = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
-  const [isTokenSet, setIsTokenSet] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { sites } = useSites();
   const { predictions } = usePredictions();
 
@@ -57,17 +52,25 @@ const MapboxMap = () => {
     };
   });
 
-  const handleTokenSubmit = () => {
-    if (mapboxToken.trim()) {
-      setIsTokenSet(true);
+  const fetchTokenAndInitialize = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+      
+      if (error) throw error;
+      if (!data?.token) throw new Error('No token received');
+
+      mapboxgl.accessToken = data.token;
       initializeMap();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load map');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const initializeMap = () => {
-    if (!mapContainer.current || !mapboxToken) return;
-
-    mapboxgl.accessToken = mapboxToken;
+    if (!mapContainer.current) return;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -123,39 +126,32 @@ const MapboxMap = () => {
     }
   };
 
-  if (!isTokenSet) {
+  useEffect(() => {
+    fetchTokenAndInitialize();
+  }, []);
+
+  if (isLoading) {
     return (
       <Card className="bg-card border-border">
-        <CardContent className="p-6">
+        <CardContent className="p-6 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-foreground">Loading satellite map...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-card border-border">
+        <CardContent className="p-6 text-center">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Settings className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">Mapbox Configuration</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Enter your Mapbox public token to enable satellite imagery. You can get one from{' '}
-              <a 
-                href="https://mapbox.com/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                mapbox.com
-              </a>
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="mapbox-token">Mapbox Public Token</Label>
-              <Input
-                id="mapbox-token"
-                type="text"
-                placeholder="pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJja..."
-                value={mapboxToken}
-                onChange={(e) => setMapboxToken(e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-            <Button onClick={handleTokenSubmit} className="w-full">
-              Initialize Satellite Map
+            <h3 className="text-lg font-semibold text-foreground">Map Configuration Error</h3>
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <Button onClick={fetchTokenAndInitialize} variant="outline">
+              Retry
             </Button>
           </div>
         </CardContent>
