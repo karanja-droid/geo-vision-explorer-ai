@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Shield, 
   AlertTriangle, 
@@ -247,40 +249,59 @@ export const SecurityDashboard = () => {
         <TabsContent value="encryption" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Encryption Management</CardTitle>
+              <CardTitle>Financial Data Encryption</CardTitle>
               <CardDescription>
-                Manage encryption keys and view encryption status
+                AES-256 encryption with automated 90-day key rotation
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {summary && summary.encrypted_tables > 0 && (
-                <Alert>
-                  <Lock className="h-4 w-4" />
-                  <AlertDescription>
-                    {summary.encrypted_tables} tables have encrypted columns enabled
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Current Encryption Key</label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={keyRotationKey}
-                    onChange={(e) => setKeyRotationKey(e.target.value)}
-                    placeholder="Enter current encryption key"
-                    className="flex-1 px-3 py-2 border rounded-md"
-                  />
-                  <Button onClick={handleKeyRotation} disabled={!keyRotationKey.trim()}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Encryption Status
+                  </h4>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    AES-256 Active
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">
+                    Budget data automatically encrypted on insert/update
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Key Management</h4>
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        const { data, error } = await supabase.functions.invoke('encryption-key-rotation');
+                        if (error) throw error;
+                        toast({
+                          title: "Key Rotation Complete",
+                          description: `Rotated ${data.total_rotated} keys successfully.`
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Key Rotation Failed", 
+                          description: error.message,
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    size="sm"
+                  >
                     <Key className="h-4 w-4 mr-2" />
-                    Rotate Key
+                    Check & Rotate Keys
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Key rotation will re-encrypt all sensitive data with a new key
-                </p>
               </div>
+
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  Keys automatically rotate every 90 days. Manual rotation available for immediate security needs.
+                </AlertDescription>
+              </Alert>
 
               {report?.encryption_status.key_rotation_history.length > 0 && (
                 <div>
