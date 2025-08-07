@@ -510,6 +510,51 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_read: boolean | null
+          can_update: boolean | null
+          conditions: Json | null
+          created_at: string
+          id: string
+          permission_action: string
+          permission_category: string
+          resource_type: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_read?: boolean | null
+          can_update?: boolean | null
+          conditions?: Json | null
+          created_at?: string
+          id?: string
+          permission_action: string
+          permission_category: string
+          resource_type: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_read?: boolean | null
+          can_update?: boolean | null
+          conditions?: Json | null
+          created_at?: string
+          id?: string
+          permission_action?: string
+          permission_category?: string
+          resource_type?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
@@ -609,6 +654,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_mfa_settings: {
+        Row: {
+          backup_codes: string[] | null
+          created_at: string
+          id: string
+          last_backup_code_used_at: string | null
+          mfa_enabled: boolean | null
+          recovery_email: string | null
+          totp_secret: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          backup_codes?: string[] | null
+          created_at?: string
+          id?: string
+          last_backup_code_used_at?: string | null
+          mfa_enabled?: boolean | null
+          recovery_email?: string | null
+          totp_secret?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          backup_codes?: string[] | null
+          created_at?: string
+          id?: string
+          last_backup_code_used_at?: string | null
+          mfa_enabled?: boolean | null
+          recovery_email?: string | null
+          totp_secret?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_presence: {
         Row: {
           created_at: string
@@ -641,6 +722,45 @@ export type Database = {
           project_id?: string | null
           status?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: unknown | null
+          is_active: boolean | null
+          last_activity: string
+          mfa_verified: boolean | null
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean | null
+          last_activity?: string
+          mfa_verified?: boolean | null
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean | null
+          last_activity?: string
+          mfa_verified?: boolean | null
+          session_token?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -2447,6 +2567,15 @@ export type Database = {
           new_srid_in: number
         }
         Returns: string
+      }
+      user_has_permission: {
+        Args: {
+          p_permission_category: string
+          p_permission_action: string
+          p_resource_type: string
+          p_action_type?: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

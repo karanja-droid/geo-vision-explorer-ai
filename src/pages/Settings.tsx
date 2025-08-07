@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/hooks/useAuth';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useActivityLogs } from '@/hooks/useActivityLogs';
+import { SecuritySettings } from '@/components/security/SecuritySettings';
+import { ROLE_LABELS } from '@/hooks/useRolePermissions';
 import { User, Settings as SettingsIcon, Database, Shield, Activity } from "lucide-react";
 
 const Settings = () => {
@@ -18,7 +21,8 @@ const Settings = () => {
     display_name: '',
     company: '',
     phone: '',
-    department: ''
+    department: '',
+    role: ''
   });
 
   useEffect(() => {
@@ -27,7 +31,8 @@ const Settings = () => {
         display_name: profile.display_name || '',
         company: profile.company || '',
         phone: profile.phone || '',
-        department: profile.department || ''
+        department: profile.department || '',
+        role: profile.role || ''
       });
     }
   }, [profile]);
@@ -133,15 +138,32 @@ const Settings = () => {
                     className="bg-slate-700/50 border-slate-600 text-slate-200"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="department" className="text-slate-200">Department</Label>
-                  <Input 
-                    id="department" 
-                    value={formData.department}
-                    onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
-                    placeholder="Enter your department"
-                    className="bg-slate-700/50 border-slate-600 text-slate-200"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="department" className="text-slate-200">Department</Label>
+                    <Input 
+                      id="department" 
+                      value={formData.department}
+                      onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                      placeholder="Enter your department"
+                      className="bg-slate-700/50 border-slate-600 text-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role" className="text-slate-200">Role</Label>
+                    <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                      <SelectTrigger className="bg-slate-700/50 border-slate-600 text-slate-200">
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value} className="text-slate-200">
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button 
@@ -157,7 +179,8 @@ const Settings = () => {
                       display_name: profile?.display_name || '',
                       company: profile?.company || '',
                       phone: profile?.phone || '',
-                      department: profile?.department || ''
+                      department: profile?.department || '',
+                      role: profile?.role || ''
                     })}
                     className="border-slate-600 text-slate-200 hover:bg-slate-700"
                   >
@@ -222,45 +245,7 @@ const Settings = () => {
           </TabsContent>
           
           <TabsContent value="security" className="mt-6">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-slate-100">Security Settings</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Manage your account security
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                  <div>
-                    <h4 className="text-slate-200 font-medium">Change Password</h4>
-                    <p className="text-sm text-slate-400">Update your account password</p>
-                  </div>
-                  <Button variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-700">
-                    Change
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                  <div>
-                    <h4 className="text-slate-200 font-medium">Two-Factor Authentication</h4>
-                    <p className="text-sm text-slate-400">Add an extra layer of security</p>
-                  </div>
-                  <Button variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-700">
-                    Enable
-                  </Button>
-                </div>
-                
-                <div className="border-t border-slate-700 pt-4">
-                  <Button 
-                    variant="destructive" 
-                    onClick={signOut}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Sign Out
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <SecuritySettings />
           </TabsContent>
         </Tabs>
       </div>
