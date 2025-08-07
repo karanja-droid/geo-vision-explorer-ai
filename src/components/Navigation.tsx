@@ -15,7 +15,8 @@ import {
   BarChart3,
   Folder,
   MapPin,
-  Users
+  Users,
+  Shield
 } from "lucide-react";
 
 const Navigation = () => {
@@ -31,6 +32,7 @@ const Navigation = () => {
     { path: '/sites', label: 'Sites', icon: MapPin },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/collaboration', label: 'Collaboration', icon: Users },
+    { path: '/security', label: 'Security', icon: Shield },
   ];
 
   return (

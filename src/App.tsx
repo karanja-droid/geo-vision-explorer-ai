@@ -12,6 +12,7 @@ import Sites from "./pages/Sites";
 import Analytics from "./pages/Analytics";
 import Collaboration from "./pages/Collaboration";
 import Settings from "./pages/Settings";
+import Security from "./pages/Security";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { PricingPage } from "./components/PricingPage";
@@ -37,6 +38,7 @@ const App = () => (
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/collaboration" element={<Collaboration />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/security" element={<Security />} />
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
