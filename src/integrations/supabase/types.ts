@@ -238,6 +238,42 @@ export type Database = {
           },
         ]
       }
+      encryption_keys: {
+        Row: {
+          created_at: string | null
+          encrypted_key: string
+          expires_at: string
+          id: string
+          is_active: boolean | null
+          key_id: string
+          key_version: number
+          metadata: Json | null
+          rotation_status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          encrypted_key: string
+          expires_at: string
+          id?: string
+          is_active?: boolean | null
+          key_id: string
+          key_version?: number
+          metadata?: Json | null
+          rotation_status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          encrypted_key?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean | null
+          key_id?: string
+          key_version?: number
+          metadata?: Json | null
+          rotation_status?: string | null
+        }
+        Relationships: []
+      }
       exploration_sites: {
         Row: {
           access_notes: string | null
@@ -1161,6 +1197,14 @@ export type Database = {
         Args: { "": unknown } | { "": unknown }
         Returns: string
       }
+      check_key_rotation_needed: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          key_id: string
+          expires_at: string
+          days_remaining: number
+        }[]
+      }
       check_rate_limit: {
         Args: {
           p_user_id: string
@@ -1177,6 +1221,10 @@ export type Database = {
           rls_enabled: boolean
           policy_count: number
         }[]
+      }
+      decrypt_financial_data: {
+        Args: { encrypted_data: string }
+        Returns: string
       }
       decrypt_sensitive_data: {
         Args: { encrypted_data: string; key_name?: string }
@@ -1207,6 +1255,10 @@ export type Database = {
       }
       enablelongtransactions: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      encrypt_financial_data: {
+        Args: { data: string; key_purpose?: string }
         Returns: string
       }
       encrypt_sensitive_data: {
@@ -1445,6 +1497,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_decrypted_budget: {
+        Args: { project_id: string }
+        Returns: number
+      }
       get_proj4_from_srid: {
         Args: { "": number }
         Returns: string
@@ -1666,6 +1722,10 @@ export type Database = {
       rotate_encryption_key: {
         Args: { old_key: string; new_key: string }
         Returns: undefined
+      }
+      rotate_encryption_keys: {
+        Args: { force_rotation?: boolean }
+        Returns: Json
       }
       spheroid_in: {
         Args: { "": unknown }
