@@ -2,24 +2,28 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createSampleData } from '@/utils/sampleData';
+import { createEnhancedSampleData } from '@/utils/enhancedSampleData';
 import { Database, RefreshCw } from 'lucide-react';
 
 interface SampleDataButtonProps {
   onDataCreated?: () => void;
+  enhanced?: boolean;
 }
 
-const SampleDataButton: React.FC<SampleDataButtonProps> = ({ onDataCreated }) => {
+const SampleDataButton: React.FC<SampleDataButtonProps> = ({ onDataCreated, enhanced = false }) => {
   const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
 
   const handleCreateSampleData = async () => {
     try {
       setIsCreating(true);
-      await createSampleData();
+      const result = enhanced ? await createEnhancedSampleData() : await createSampleData();
       
       toast({
         title: "Sample Data Created",
-        description: "AI models and projects have been created successfully",
+        description: enhanced 
+          ? `Created ${result.totalRecords} records: ${result.projects.length} projects, ${result.sites.length} sites, ${result.deposits.length} deposits, ${result.predictions.length} predictions`
+          : "AI models and projects have been created successfully",
       });
       
       onDataCreated?.();
@@ -50,7 +54,7 @@ const SampleDataButton: React.FC<SampleDataButtonProps> = ({ onDataCreated }) =>
       ) : (
         <>
           <Database className="w-4 h-4" />
-          Create Sample Data
+          {enhanced ? 'Create Enhanced ML Dataset' : 'Create Sample Data'}
         </>
       )}
     </Button>

@@ -114,7 +114,8 @@ export const createSampleData = async () => {
       projects: createdProjects,
       sites: [],
       deposits: [],
-      predictions: []
+      predictions: [],
+      totalRecords: (createdModels?.length || 0) + (createdProjects?.length || 0)
     };
 
   } catch (error) {

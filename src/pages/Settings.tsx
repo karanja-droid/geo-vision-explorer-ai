@@ -11,6 +11,7 @@ import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { SecuritySettings } from '@/components/security/SecuritySettings';
 import { ROLE_LABELS } from '@/hooks/useRolePermissions';
 import { User, Settings as SettingsIcon, Database, Shield, Activity } from "lucide-react";
+import EnhancedDataButton from '@/components/EnhancedDataButton';
 
 const Settings = () => {
   const { user, signOut } = useAuth();
@@ -196,7 +197,9 @@ const Settings = () => {
             </Card>
           </TabsContent>
           
-          <TabsContent value="data" className="mt-6">
+          <TabsContent value="data" className="mt-6 space-y-6">
+            <EnhancedDataButton />
+            
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <CardTitle className="text-slate-100 flex items-center gap-2">
