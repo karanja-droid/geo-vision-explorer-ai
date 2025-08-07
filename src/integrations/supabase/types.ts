@@ -105,6 +105,48 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          changed_fields: string[] | null
+          id: string
+          ip_address: unknown | null
+          new_data: Json | null
+          old_data: Json | null
+          operation: string
+          session_id: string | null
+          table_name: string
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          changed_fields?: string[] | null
+          id?: string
+          ip_address?: unknown | null
+          new_data?: Json | null
+          old_data?: Json | null
+          operation: string
+          session_id?: string | null
+          table_name: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          changed_fields?: string[] | null
+          id?: string
+          ip_address?: unknown | null
+          new_data?: Json | null
+          old_data?: Json | null
+          operation?: string
+          session_id?: string | null
+          table_name?: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       collaboration_messages: {
         Row: {
           created_at: string
@@ -187,6 +229,13 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "collaboration_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects_secure"
+            referencedColumns: ["id"]
+          },
         ]
       }
       exploration_sites: {
@@ -242,6 +291,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exploration_sites_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -418,6 +474,7 @@ export type Database = {
           display_name: string | null
           id: string
           phone: string | null
+          phone_encrypted: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string
@@ -430,6 +487,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           phone?: string | null
+          phone_encrypted?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
@@ -442,6 +500,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           phone?: string | null
+          phone_encrypted?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
@@ -451,6 +510,8 @@ export type Database = {
       projects: {
         Row: {
           budget: number | null
+          budget_encrypted: string | null
+          contract_terms_encrypted: string | null
           coordinates: unknown | null
           country: string | null
           created_at: string
@@ -468,6 +529,8 @@ export type Database = {
         }
         Insert: {
           budget?: number | null
+          budget_encrypted?: string | null
+          contract_terms_encrypted?: string | null
           coordinates?: unknown | null
           country?: string | null
           created_at?: string
@@ -485,6 +548,8 @@ export type Database = {
         }
         Update: {
           budget?: number | null
+          budget_encrypted?: string | null
+          contract_terms_encrypted?: string | null
           coordinates?: unknown | null
           country?: string | null
           created_at?: string
@@ -509,6 +574,33 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      rate_limits: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          id: string
+          request_count: number | null
+          user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          request_count?: number | null
+          user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          request_count?: number | null
+          user_id?: string
+          window_start?: string | null
+        }
+        Relationships: []
       }
       role_permissions: {
         Row: {
@@ -809,6 +901,71 @@ export type Database = {
         }
         Relationships: []
       }
+      projects_secure: {
+        Row: {
+          budget_details: string | null
+          contract_terms: string | null
+          coordinates: unknown | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          geology_type: string | null
+          id: string | null
+          name: string | null
+          owner_id: string | null
+          province: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"] | null
+          target_minerals: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          budget_details?: never
+          contract_terms?: never
+          coordinates?: unknown | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          geology_type?: string | null
+          id?: string | null
+          name?: string | null
+          owner_id?: string | null
+          province?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"] | null
+          target_minerals?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          budget_details?: never
+          contract_terms?: never
+          coordinates?: unknown | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          geology_type?: string | null
+          id?: string | null
+          name?: string | null
+          owner_id?: string | null
+          province?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"] | null
+          target_minerals?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Functions: {
       _postgis_deprecate: {
@@ -1004,6 +1161,27 @@ export type Database = {
         Args: { "": unknown } | { "": unknown }
         Returns: string
       }
+      check_rate_limit: {
+        Args: {
+          p_user_id: string
+          p_endpoint: string
+          p_limit?: number
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
+      check_rls_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          table_name: string
+          rls_enabled: boolean
+          policy_count: number
+        }[]
+      }
+      decrypt_sensitive_data: {
+        Args: { encrypted_data: string; key_name?: string }
+        Returns: string
+      }
       disablelongtransactions: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1029,6 +1207,10 @@ export type Database = {
       }
       enablelongtransactions: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      encrypt_sensitive_data: {
+        Args: { data: string; key_name?: string }
         Returns: string
       }
       equals: {
@@ -1480,6 +1662,10 @@ export type Database = {
       postgis_wagyu_version: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      rotate_encryption_key: {
+        Args: { old_key: string; new_key: string }
+        Returns: undefined
       }
       spheroid_in: {
         Args: { "": unknown }
