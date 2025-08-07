@@ -18,17 +18,38 @@ import {
 import { useAIModels } from '@/hooks/useAIModels';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useSites } from '@/hooks/useSites';
+import { useAIAnalysis } from '@/hooks/useAIAnalysis';
+import SampleDataButton from '@/components/SampleDataButton';
 
 const AIAnalysisPanel = () => {
-  const [analysisRunning, setAnalysisRunning] = useState(false);
-  const { models, getModelStats, getActiveModels } = useAIModels();
-  const { predictions, getPredictionStats, getHighConfidencePredictions } = usePredictions();
+  const { models, getModelStats, getActiveModels, refetch: refetchModels } = useAIModels();
+  const { predictions, getPredictionStats, getHighConfidencePredictions, refetch: refetchPredictions } = usePredictions();
   const { sites } = useSites();
+  const { runAnalysis, isAnalyzing } = useAIAnalysis();
 
-  const runAnalysis = async () => {
-    setAnalysisRunning(true);
-    // Simulate analysis process
-    setTimeout(() => setAnalysisRunning(false), 3000);
+  const handleDataCreated = () => {
+    refetchModels();
+    refetchPredictions();
+    // refetchSites(); // Sites hook doesn't have refetch method
+  };
+
+  const handleRunAnalysis = async () => {
+    // Get the first available site and model for demo
+    const availableSites = sites.filter(site => site.id);
+    const activeModels = getActiveModels();
+    
+    if (availableSites.length === 0 || activeModels.length === 0) {
+      return;
+    }
+
+    const randomSite = availableSites[Math.floor(Math.random() * availableSites.length)];
+    const randomModel = activeModels[Math.floor(Math.random() * activeModels.length)];
+    
+    const result = await runAnalysis(randomSite.id, randomModel.id);
+    if (result) {
+      // Refresh predictions to show the new analysis
+      refetchPredictions();
+    }
   };
 
   const modelStats = getModelStats();
@@ -72,23 +93,27 @@ const AIAnalysisPanel = () => {
         <CardContent>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <Button 
-                onClick={runAnalysis}
-                disabled={analysisRunning}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {analysisRunning ? (
-                  <>
-                    <Activity className="w-4 h-4 mr-2 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4 mr-2" />
-                    Run Analysis
-                  </>
-                )}
-              </Button>
+              {models.length === 0 ? (
+                <SampleDataButton onDataCreated={handleDataCreated} />
+              ) : (
+                <Button 
+                  onClick={handleRunAnalysis}
+                  disabled={isAnalyzing}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Activity className="w-4 h-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Run Analysis
+                    </>
+                  )}
+                </Button>
+              )}
               <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30">
                 <CheckCircle className="w-3 h-3 mr-1" />
                 {modelStats.activeModels} Models Active
@@ -97,12 +122,12 @@ const AIAnalysisPanel = () => {
             <div className="text-right">
               <p className="text-sm text-slate-400">Processing Status</p>
               <p className="text-lg font-bold text-green-400">
-                {analysisRunning ? "Running" : "Ready"}
+                {isAnalyzing ? "Running" : "Ready"}
               </p>
             </div>
           </div>
 
-          {analysisRunning && (
+          {isAnalyzing && (
             <div className="mb-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Activity className="w-4 h-4 text-purple-400 animate-spin" />
@@ -124,7 +149,13 @@ const AIAnalysisPanel = () => {
 
             <TabsContent value="models" className="mt-4">
               <div className="space-y-3">
-                {modelPerformance.map((model, index) => (
+                {modelPerformance.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400 mb-4">No AI models available</p>
+                    <SampleDataButton onDataCreated={handleDataCreated} />
+                  </div>
+                ) : (
+                  modelPerformance.map((model, index) => (
                   <div key={index} className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg">
                     <div className="space-y-1">
                       <p className="font-medium text-slate-200">{model.name}</p>
@@ -146,13 +177,20 @@ const AIAnalysisPanel = () => {
                       </Badge>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </TabsContent>
 
             <TabsContent value="predictions" className="mt-4">
               <div className="space-y-3">
-                {transformedPredictions.map((prediction, index) => (
+                {transformedPredictions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400 mb-2">No predictions available</p>
+                    <p className="text-slate-500 text-sm mb-4">Run an analysis to generate predictions</p>
+                  </div>
+                ) : (
+                  transformedPredictions.map((prediction, index) => (
                   <div key={index} className="p-4 bg-slate-700/50 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -183,7 +221,8 @@ const AIAnalysisPanel = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </TabsContent>
 
