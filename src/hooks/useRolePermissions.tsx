@@ -138,9 +138,12 @@ export const useRolePermissions = () => {
     if (!user) return;
 
     try {
-      const backupCodes = Array.from({ length: 10 }, () => 
-        Math.random().toString(36).substring(2, 8).toUpperCase()
-      );
+      // Generate cryptographically secure backup codes
+      const backupCodes = Array.from({ length: 10 }, () => {
+        const array = new Uint8Array(4);
+        crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('').substring(0, 6).toUpperCase();
+      });
 
       const { data, error } = await supabase
         .from('user_mfa_settings')

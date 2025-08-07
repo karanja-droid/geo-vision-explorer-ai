@@ -21,8 +21,7 @@ const Settings = () => {
     display_name: '',
     company: '',
     phone: '',
-    department: '',
-    role: ''
+    department: ''
   });
 
   useEffect(() => {
@@ -31,8 +30,7 @@ const Settings = () => {
         display_name: profile.display_name || '',
         company: profile.company || '',
         phone: profile.phone || '',
-        department: profile.department || '',
-        role: profile.role || ''
+        department: profile.department || ''
       });
     }
   }, [profile]);
@@ -149,21 +147,15 @@ const Settings = () => {
                       className="bg-slate-700/50 border-slate-600 text-slate-200"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role" className="text-slate-200">Role</Label>
-                    <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-                      <SelectTrigger className="bg-slate-700/50 border-slate-600 text-slate-200">
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
-                        {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value} className="text-slate-200">
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="role" className="text-slate-200">Role</Label>
+                     <div className="bg-slate-700/50 border border-slate-600 rounded-md px-3 py-2 text-slate-200">
+                       {profile?.role ? ROLE_LABELS[profile.role as keyof typeof ROLE_LABELS] || profile.role : 'Loading...'}
+                     </div>
+                     <p className="text-sm text-slate-400">
+                       Contact an administrator to change your role
+                     </p>
+                   </div>
                 </div>
                 <div className="flex gap-2">
                   <Button 
@@ -175,13 +167,12 @@ const Settings = () => {
                   </Button>
                   <Button 
                     variant="outline" 
-                    onClick={() => setFormData({
-                      display_name: profile?.display_name || '',
-                      company: profile?.company || '',
-                      phone: profile?.phone || '',
-                      department: profile?.department || '',
-                      role: profile?.role || ''
-                    })}
+                     onClick={() => setFormData({
+                       display_name: profile?.display_name || '',
+                       company: profile?.company || '',
+                       phone: profile?.phone || '',
+                       department: profile?.department || ''
+                     })}
                     className="border-slate-600 text-slate-200 hover:bg-slate-700"
                   >
                     Cancel

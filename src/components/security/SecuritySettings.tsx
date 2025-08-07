@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRolePermissions, ROLE_LABELS } from '@/hooks/useRolePermissions';
 import { useProfiles } from '@/hooks/useProfiles';
+import { BackupCodesModal } from './BackupCodesModal';
 import { Shield, Smartphone, Key, AlertTriangle, Clock, Monitor } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -16,16 +17,23 @@ export const SecuritySettings = () => {
   const { mfaSettings, userSessions, enableMFA, disableMFA, revokeSession, loading } = useRolePermissions();
   const [isEnablingMFA, setIsEnablingMFA] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [totpSecret] = useState(() => 
-    Array.from({ length: 16 }, () => Math.random().toString(36)[2]).join('')
-  );
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  
+  // Generate cryptographically secure TOTP secret
+  const [totpSecret] = useState(() => {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(36)).join('').substring(0, 16);
+  });
 
   const handleEnableMFA = async () => {
     setIsEnablingMFA(true);
     try {
       const result = await enableMFA(totpSecret, recoveryEmail);
-      if (result?.success) {
-        alert(`MFA enabled! Backup codes: ${result.backupCodes?.join(', ')}`);
+      if (result?.success && result.backupCodes) {
+        setBackupCodes(result.backupCodes);
+        setShowBackupCodes(true);
       }
     } catch (error) {
       console.error('Failed to enable MFA:', error);
@@ -233,6 +241,12 @@ export const SecuritySettings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <BackupCodesModal
+        isOpen={showBackupCodes}
+        onClose={() => setShowBackupCodes(false)}
+        backupCodes={backupCodes}
+      />
     </div>
   );
 };
