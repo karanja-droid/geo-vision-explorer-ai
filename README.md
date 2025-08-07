@@ -32,9 +32,12 @@ GeoVision AI Miner is a cutting-edge geospatial intelligence platform designed f
 - Subscription-based feature gating with trial support
 
 ### 🔐 **Enterprise Security**
-- Row-Level Security (RLS) with role-based access control
-- Multi-tenant architecture with user isolation
-- Secure authentication and authorization
+- Advanced Role-Based Access Control (7 specialized mining roles)
+- Multi-Factor Authentication (MFA) with TOTP and backup codes
+- Session monitoring with IP tracking and device management
+- Granular permission system with category-based access control
+- Comprehensive audit trails and activity logging
+- Row-Level Security (RLS) with user isolation
 
 ## 🛠️ Technology Stack
 
@@ -89,10 +92,12 @@ GeoVision AI Miner is a cutting-edge geospatial intelligence platform designed f
 - Message threading and project-based communication
 
 ### **5. Subscription & Usage Management**
-- Tiered subscription plans (Individual, Starter Team, Corporate, Enterprise)
+- Tiered subscription plans with detailed usage limits
 - 30-day trial system with automatic activation
-- Usage metrics tracking and quota management
+- Real-time usage tracking: AI runs, map tiles, GEE hours, BigQuery GB
+- Smart quota management with soft and hard limits
 - Feature flagging based on subscription tiers
+- Usage analytics and cost optimization recommendations
 
 ## 🗄️ Database Architecture
 
@@ -105,7 +110,11 @@ GeoVision AI Miner is a cutting-edge geospatial intelligence platform designed f
 
 ### **User Management**
 - `profiles` - Extended user information with role management
-- `activity_logs` - Comprehensive audit trail
+- `user_roles` - Role assignment and management (using app_role enum)
+- `role_permissions` - Granular permission matrix for all actions
+- `user_sessions` - Session tracking with IP and device monitoring
+- `user_mfa_settings` - MFA configuration and backup codes
+- `activity_logs` - Comprehensive audit trail with metadata
 - `user_presence` - Real-time collaboration features
 
 ### **Collaboration**
@@ -125,17 +134,56 @@ GeoVision AI Miner is a cutting-edge geospatial intelligence platform designed f
 
 ## 👥 User Roles & Permissions
 
-### **Geologist** (Default)
-- Create and manage own projects
-- Access AI analysis tools
-- Collaborate with team members
-- View own data and shared projects
-
-### **Admin**
+### **Administrator**
 - Full system access and user management
-- Override permissions and data access
+- Override all permissions and data access
 - Manage feature flags and system configuration
-- Access all projects and analytics
+- Access all projects, analytics, and audit logs
+
+### **Geologist** (Default)
+- Create and manage own projects and sites
+- Access AI analysis tools and predictions
+- Collaborate with team members
+- View own data and assigned projects
+
+### **Geophysicist**
+- Advanced geophysical data analysis
+- Seismic and magnetic survey interpretation
+- Specialized modeling and visualization tools
+- Cross-project geophysical correlation
+
+### **Drilling Manager**
+- Drilling operations planning and oversight
+- Core sample management and logging
+- Drilling safety and compliance monitoring
+- Resource allocation for drilling campaigns
+
+### **QA/QC Specialist**
+- Quality assurance for all data collection
+- Sample verification and validation
+- Compliance monitoring and reporting
+- Data integrity auditing and correction
+
+### **Environmental Officer**
+- Environmental impact assessment
+- Regulatory compliance monitoring
+- Sustainability reporting and metrics
+- Environmental risk management
+
+### **Executive**
+- High-level project overview and reporting
+- Strategic decision-making dashboards
+- Cross-project analytics and insights
+- Budget and timeline management
+
+### **Permission Categories**
+- **Projects**: Create, read, update, delete exploration projects
+- **Sites**: Manage geological exploration sites
+- **Minerals**: Track and analyze mineral deposits
+- **Predictions**: Run and manage AI predictions
+- **Analytics**: Access reporting and metrics
+- **Collaboration**: Participate in team sessions
+- **Admin**: System configuration and user management
 
 ## 🚀 Getting Started
 
@@ -201,25 +249,32 @@ The database schema is automatically managed through Supabase migrations:
 
 ### **Individual** - $7.99/month
 - 5 projects, 20 sites per project
-- 100 AI predictions/month
+- 100 AI runs/month, 10,000 map tiles
+- 50 Google Earth Engine hours, 100 GB BigQuery
 - Basic collaboration (2 team members)
+- Standard security features
 
 ### **Starter Team** - $19.99/month
 - 15 projects, 50 sites per project
-- 500 AI predictions/month
+- 500 AI runs/month, 50,000 map tiles
+- 200 Google Earth Engine hours, 500 GB BigQuery
 - Enhanced collaboration (5 team members)
+- MFA and session management
 
 ### **Corporate** - $49.99/month
 - 50 projects, 200 sites per project
-- 2000 AI predictions/month
+- 2000 AI runs/month, 200,000 map tiles
+- 1000 Google Earth Engine hours, 2 TB BigQuery
 - Advanced collaboration (20 team members)
+- Full security suite with audit logs
 - Priority support
 
 ### **Enterprise** - Custom Pricing
 - Unlimited projects and sites
-- Unlimited AI predictions
-- White-label options
-- Dedicated support
+- Unlimited AI runs and cloud resources
+- White-label options and custom integrations
+- Dedicated support and security compliance
+- Custom role definitions and permissions
 
 ## 🔧 Development Workflow
 
@@ -231,10 +286,12 @@ The database schema is automatically managed through Supabase migrations:
 - `supabase/` - Database migrations and functions
 
 ### **Key Development Patterns**
-- Feature-based component organization
-- Custom hooks for data fetching and state management
-- Row Level Security for data protection
-- Real-time subscriptions for live features
+- Feature-based component organization with security boundaries
+- Custom hooks for data fetching, permissions, and state management
+- Comprehensive Row Level Security with role-based policies
+- Real-time subscriptions for live collaboration features
+- Security-first architecture with MFA and session management
+- Granular permission checking with caching optimization
 
 ## 📚 API Documentation
 
