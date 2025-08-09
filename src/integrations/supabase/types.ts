@@ -229,13 +229,6 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "collaboration_sessions_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       encryption_keys: {
@@ -327,13 +320,6 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exploration_sites_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -936,71 +922,6 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
-      }
-      projects_secure: {
-        Row: {
-          budget_details: string | null
-          contract_terms: string | null
-          coordinates: unknown | null
-          country: string | null
-          created_at: string | null
-          description: string | null
-          end_date: string | null
-          geology_type: string | null
-          id: string | null
-          name: string | null
-          owner_id: string | null
-          province: string | null
-          start_date: string | null
-          status: Database["public"]["Enums"]["project_status"] | null
-          target_minerals: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          budget_details?: never
-          contract_terms?: never
-          coordinates?: unknown | null
-          country?: string | null
-          created_at?: string | null
-          description?: string | null
-          end_date?: string | null
-          geology_type?: string | null
-          id?: string | null
-          name?: string | null
-          owner_id?: string | null
-          province?: string | null
-          start_date?: string | null
-          status?: Database["public"]["Enums"]["project_status"] | null
-          target_minerals?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          budget_details?: never
-          contract_terms?: never
-          coordinates?: unknown | null
-          country?: string | null
-          created_at?: string | null
-          description?: string | null
-          end_date?: string | null
-          geology_type?: string | null
-          id?: string | null
-          name?: string | null
-          owner_id?: string | null
-          province?: string | null
-          start_date?: string | null
-          status?: Database["public"]["Enums"]["project_status"] | null
-          target_minerals?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "projects_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
       }
     }
     Functions: {
