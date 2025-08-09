@@ -27,12 +27,12 @@ const Navigation = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const navigationItems = [
-    { path: '/', label: 'Dashboard', icon: BarChart3 },
-    { path: '/projects', label: 'Projects', icon: Folder },
-    { path: '/sites', label: 'Sites', icon: MapPin },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/collaboration', label: 'Collaboration', icon: Users },
-    { path: '/security', label: 'Security', icon: Shield },
+    { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { path: '/dashboard/projects', label: 'Projects', icon: Folder },
+    { path: '/dashboard/sites', label: 'Sites', icon: MapPin },
+    { path: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/dashboard/collaboration', label: 'Collaboration', icon: Users },
+    { path: '/dashboard/security', label: 'Security', icon: Shield },
   ];
 
   return (
@@ -40,11 +40,11 @@ const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
+          <Link to="/dashboard" className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <Satellite className="w-4 h-4 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-100">GeoVisionminer</span>
+            <span className="text-xl font-bold text-slate-100">GeoVision AI Miner</span>
             <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
               AI
             </Badge>

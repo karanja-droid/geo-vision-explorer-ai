@@ -276,14 +276,16 @@ export const SecurityDashboard = () => {
                       try {
                         const { data, error } = await supabase.functions.invoke('encryption-key-rotation');
                         if (error) throw error;
+                        const { toast } = useToast();
                         toast({
                           title: "Key Rotation Complete",
                           description: `Rotated ${data.total_rotated} keys successfully.`
                         });
                       } catch (error) {
+                        const { toast } = useToast();
                         toast({
                           title: "Key Rotation Failed", 
-                          description: error.message,
+                          description: error instanceof Error ? error.message : "Unknown error",
                           variant: "destructive"
                         });
                       }
