@@ -5,8 +5,12 @@
  * Generates sitemap.xml based on SITE_URL environment variable
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Get site URL from environment or use default
 const SITE_URL = process.env.VITE_SITE_URL || 'https://geo-miner.com';
@@ -62,8 +66,8 @@ function writeSitemap() {
 }
 
 // Run if called directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   writeSitemap();
 }
 
-module.exports = { generateSitemap, writeSitemap };
+export { generateSitemap, writeSitemap };
