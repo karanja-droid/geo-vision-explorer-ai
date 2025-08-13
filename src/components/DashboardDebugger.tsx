@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 const DashboardDebugger = () => {
   const { user, session, loading } = useAuth();
   const location = useLocation();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const debugInfo = {
     'Authentication Status': {
@@ -58,12 +60,35 @@ const DashboardDebugger = () => {
   return (
     <Card className="bg-slate-800/50 border-slate-700 mb-6">
       <CardHeader>
-        <CardTitle className="text-slate-100 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-blue-400" />
-          Dashboard Debug Information
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <CardTitle className="text-slate-100 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-blue-400" />
+              Dashboard Debug Information
+            </CardTitle>
+            {!isExpanded && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={getStatusColor(user ? 'success' : 'error')}>
+                  {user ? 'Authenticated' : 'Not Authenticated'}
+                </Badge>
+                <Badge variant="outline" className={getStatusColor(session ? 'success' : 'error')}>
+                  {session ? 'Active Session' : 'No Session'}
+                </Badge>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-slate-400 hover:text-slate-200"
+          >
+            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      {isExpanded && (
+        <CardContent className="space-y-4">
         {Object.entries(debugInfo).map(([key, info]) => (
           <div key={key} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
             <div className="flex items-center gap-3">
@@ -81,20 +106,35 @@ const DashboardDebugger = () => {
         
         {user && (
           <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
-            <p className="text-sm font-medium text-slate-200 mb-2">User Details:</p>
-            <pre className="text-xs text-slate-400 overflow-auto">
-              {JSON.stringify({
-                id: user.id,
-                email: user.email,
-                email_confirmed_at: user.email_confirmed_at,
-                created_at: user.created_at,
-                user_metadata: user.user_metadata,
-                app_metadata: user.app_metadata
-              }, null, 2)}
-            </pre>
+            <p className="text-sm font-medium text-slate-200 mb-2">User Profile:</p>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="text-slate-400">Email:</span>
+                <span className="text-slate-200 ml-2">{user.email}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Account Created:</span>
+                <span className="text-slate-200 ml-2">
+                  {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">Email Verified:</span>
+                <span className="text-slate-200 ml-2">
+                  {user.email_confirmed_at ? 'Yes' : 'No'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">Display Name:</span>
+                <span className="text-slate-200 ml-2">
+                  {user.user_metadata?.display_name || user.user_metadata?.full_name || 'Not set'}
+                </span>
+              </div>
+            </div>
           </div>
         )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 };
