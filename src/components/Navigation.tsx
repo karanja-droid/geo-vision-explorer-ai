@@ -28,11 +28,11 @@ const Navigation = () => {
 
   const navigationItems = [
     { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-    { path: '/dashboard/projects', label: 'Projects', icon: Folder },
-    { path: '/dashboard/sites', label: 'Sites', icon: MapPin },
-    { path: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/dashboard/collaboration', label: 'Collaboration', icon: Users },
-    { path: '/dashboard/security', label: 'Security', icon: Shield },
+    { path: '/projects', label: 'Projects', icon: Folder },
+    { path: '/sites', label: 'Sites', icon: MapPin },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/collaboration', label: 'Collaboration', icon: Users },
+    { path: '/security', label: 'Security', icon: Shield },
   ];
 
   return (

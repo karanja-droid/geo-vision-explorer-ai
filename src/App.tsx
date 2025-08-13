@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Security from "./pages/Security";
 import Auth from "./pages/Auth";
 import EmailTest from "./pages/EmailTest";
+import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 import { PricingPage } from "./components/PricingPage";
 
@@ -33,21 +34,50 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/email-test" element={<EmailTest />} />
-            <Route path="/*" element={
+            <Route path="/debug" element={<Debug />} />
+            <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Navigation />
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/sites" element={<Sites />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/collaboration" element={<Collaboration />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/security" element={<Security />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <Dashboard />
               </ProtectedRoute>
             } />
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Projects />
+              </ProtectedRoute>
+            } />
+            <Route path="/sites" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Sites />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Analytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/collaboration" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Collaboration />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/security" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Security />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

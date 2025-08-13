@@ -12,6 +12,7 @@ import IoTDashboard from "@/components/iot/IoTDashboard";
 import GeologicalModel3DViewer from "@/components/modeling/GeologicalModel3DViewer";
 import BusinessIntelligenceDashboard from "@/components/analytics/BusinessIntelligenceDashboard";
 import { FeatureFlag, useFeatureFlags } from "@/config/featureFlags";
+import DashboardDebugger from "@/components/DashboardDebugger";
 
 const Dashboard = () => {
   const [selectedProject] = useState('sample-project-id'); // In real app, this would come from context/props
@@ -23,6 +24,9 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Trial Banner */}
         <TrialBanner />
+        
+        {/* Debug Information */}
+        <DashboardDebugger />
         
         {/* Header */}
         <div className="mb-8">

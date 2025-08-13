@@ -14,7 +14,10 @@
   "providers": [
     {
       "name": "GeoVision AI Miner",
-      "roles": ["host", "processor"],
+      "roles": [
+        "host",
+        "processor"
+      ],
       "url": "https://geovision.ai"
     }
   ],
