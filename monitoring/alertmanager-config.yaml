@@ -1,0 +1,371 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+  labels:
+    app: alertmanager
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'alerts@geovision-ai-miner.com'
+      smtp_auth_username: 'alerts@geovision-ai-miner.com'
+      smtp_auth_password: 'your-app-password'
+      smtp_require_tls: true
+      
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+      
+      pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+      
+      # Global resolve timeout
+      resolve_timeout: 5m
+    
+    # Templates for notifications
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+    
+    # Route tree for alerts
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'default-receiver'
+      
+      routes:
+        # Critical alerts go to PagerDuty and Slack immediately
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+          group_wait: 0s
+          repeat_interval: 5m
+          continue: true
+        
+        # Warning alerts go to Slack
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+          group_wait: 30s
+          repeat_interval: 30m
+          continue: true
+        
+        # Info alerts go to email only
+        - match:
+            severity: info
+          receiver: 'info-alerts'
+          group_wait: 5m
+          repeat_interval: 4h
+        
+        # Geological-specific alerts
+        - match:
+            service: ai-analysis
+          receiver: 'geological-team'
+          group_wait: 1m
+          repeat_interval: 15m
+        
+        - match:
+            service: mapping
+          receiver: 'mapping-team'
+          group_wait: 2m
+          repeat_interval: 30m
+        
+        # Database alerts
+        - match:
+            service: database
+          receiver: 'database-team'
+          group_wait: 30s
+          repeat_interval: 10m
+        
+        # Infrastructure alerts
+        - match:
+            service: kubernetes
+          receiver: 'infrastructure-team'
+          group_wait: 1m
+          repeat_interval: 15m
+        
+        # Business metrics alerts
+        - match:
+            service: business
+          receiver: 'business-team'
+          group_wait: 10m
+          repeat_interval: 2h
+    
+    # Inhibition rules to prevent alert spam
+    inhibit_rules:
+      # Inhibit warning alerts if critical alert is firing
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'cluster', 'service']
+      
+      # Inhibit individual pod alerts if node is down
+      - source_match:
+          alertname: 'KubernetesNodeNotReady'
+        target_match_re:
+          alertname: 'KubernetesPod.*'
+        equal: ['node']
+      
+      # Inhibit high latency alerts if high error rate is firing
+      - source_match:
+          alertname: 'GeoVisionHighErrorRate'
+        target_match:
+          alertname: 'GeoVisionHighLatency'
+        equal: ['service']
+    
+    # Receivers define how to send notifications
+    receivers:
+      - name: 'default-receiver'
+        email_configs:
+          - to: 'devops@geovision-ai-miner.com'
+            subject: '[GeoVision] {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+              {{ end }}
+      
+      - name: 'critical-alerts'
+        pagerduty_configs:
+          - routing_key: 'your-pagerduty-integration-key'
+            description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+            details:
+              firing: '{{ .Alerts.Firing | len }}'
+              resolved: '{{ .Alerts.Resolved | len }}'
+              cluster: '{{ .GroupLabels.cluster }}'
+              service: '{{ .GroupLabels.service }}'
+        
+        slack_configs:
+          - channel: '#alerts-critical'
+            username: 'GeoVision Alertmanager'
+            icon_emoji: ':rotating_light:'
+            title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+            text: |
+              {{ range .Alerts }}
+              *Alert:* {{ .Annotations.summary }}
+              *Description:* {{ .Annotations.description }}
+              *Service:* {{ .Labels.service }}
+              *Severity:* {{ .Labels.severity }}
+              {{ end }}
+            actions:
+              - type: button
+                text: 'View in Grafana'
+                url: 'https://grafana.geovision-ai-miner.com/d/overview'
+              - type: button
+                text: 'Silence Alert'
+                url: '{{ .ExternalURL }}/#/silences/new?filter=%7B'
+        
+        email_configs:
+          - to: 'oncall@geovision-ai-miner.com'
+            subject: '[CRITICAL] GeoVision Alert: {{ .GroupLabels.alertname }}'
+            body: |
+              CRITICAL ALERT FIRED
+              
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Service: {{ .Labels.service }}
+              Severity: {{ .Labels.severity }}
+              Started: {{ .StartsAt }}
+              
+              Labels:
+              {{ range .Labels.SortedPairs }}  {{ .Name }}: {{ .Value }}
+              {{ end }}
+              {{ end }}
+              
+              View in Grafana: https://grafana.geovision-ai-miner.com
+              Silence alerts: {{ .ExternalURL }}/#/silences
+      
+      - name: 'warning-alerts'
+        slack_configs:
+          - channel: '#alerts-warning'
+            username: 'GeoVision Alertmanager'
+            icon_emoji: ':warning:'
+            title: 'WARNING: {{ .GroupLabels.alertname }}'
+            text: |
+              {{ range .Alerts }}
+              *Alert:* {{ .Annotations.summary }}
+              *Description:* {{ .Annotations.description }}
+              *Service:* {{ .Labels.service }}
+              {{ end }}
+        
+        email_configs:
+          - to: 'team@geovision-ai-miner.com'
+            subject: '[WARNING] GeoVision Alert: {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Service: {{ .Labels.service }}
+              {{ end }}
+      
+      - name: 'info-alerts'
+        email_configs:
+          - to: 'monitoring@geovision-ai-miner.com'
+            subject: '[INFO] GeoVision: {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              {{ end }}
+      
+      - name: 'geological-team'
+        slack_configs:
+          - channel: '#geological-alerts'
+            username: 'GeoVision Geological Monitor'
+            icon_emoji: ':mountain:'
+            title: 'Geological System Alert: {{ .GroupLabels.alertname }}'
+            text: |
+              {{ range .Alerts }}
+              *Alert:* {{ .Annotations.summary }}
+              *Description:* {{ .Annotations.description }}
+              *AI Service:* {{ .Labels.service }}
+              {{ end }}
+        
+        email_configs:
+          - to: 'geological-team@geovision-ai-miner.com'
+            subject: '[GEOLOGICAL] {{ .GroupLabels.alertname }}'
+            body: |
+              Geological system alert detected:
+              
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Service: {{ .Labels.service }}
+              {{ end }}
+      
+      - name: 'mapping-team'
+        slack_configs:
+          - channel: '#mapping-alerts'
+            username: 'GeoVision Mapping Monitor'
+            icon_emoji: ':world_map:'
+            title: 'Mapping System Alert: {{ .GroupLabels.alertname }}'
+        
+        email_configs:
+          - to: 'mapping-team@geovision-ai-miner.com'
+            subject: '[MAPPING] {{ .GroupLabels.alertname }}'
+      
+      - name: 'database-team'
+        slack_configs:
+          - channel: '#database-alerts'
+            username: 'GeoVision DB Monitor'
+            icon_emoji: ':floppy_disk:'
+            title: 'Database Alert: {{ .GroupLabels.alertname }}'
+        
+        email_configs:
+          - to: 'dba@geovision-ai-miner.com'
+            subject: '[DATABASE] {{ .GroupLabels.alertname }}'
+      
+      - name: 'infrastructure-team'
+        slack_configs:
+          - channel: '#infrastructure-alerts'
+            username: 'GeoVision Infrastructure Monitor'
+            icon_emoji: ':gear:'
+            title: 'Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        
+        email_configs:
+          - to: 'devops@geovision-ai-miner.com'
+            subject: '[INFRASTRUCTURE] {{ .GroupLabels.alertname }}'
+      
+      - name: 'business-team'
+        email_configs:
+          - to: 'business@geovision-ai-miner.com'
+            subject: '[BUSINESS METRICS] {{ .GroupLabels.alertname }}'
+            body: |
+              Business metrics alert:
+              
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              {{ end }}
+              
+              This may indicate changes in user behavior or system usage patterns.
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-templates
+  namespace: monitoring
+  labels:
+    app: alertmanager
+data:
+  default.tmpl: |
+    {{ define "__subject" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }} {{ if gt (len .CommonLabels) (len .GroupLabels) }}({{ with .CommonLabels.Remove .GroupLabels.Names }}{{ .Values | join " " }}{{ end }}){{ end }}{{ end }}
+    
+    {{ define "__description" }}{{ end }}
+    
+    {{ define "__text_alert_list" }}{{ range . }}Labels:
+    {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
+    {{ end }}Annotations:
+    {{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
+    {{ end }}Source: {{ .GeneratorURL }}
+    {{ end }}{{ end }}
+    
+    {{ define "slack.default.title" }}{{ template "__subject" . }}{{ end }}
+    {{ define "slack.default.username" }}GeoVision Alertmanager{{ end }}
+    {{ define "slack.default.fallback" }}{{ template "slack.default.title" . }} | {{ template "slack.default.titlelink" . }}{{ end }}
+    {{ define "slack.default.pretext" }}{{ end }}
+    {{ define "slack.default.titlelink" }}{{ template "__alertmanagerURL" . }}{{ end }}
+    {{ define "slack.default.iconemoji" }}{{ end }}
+    {{ define "slack.default.iconurl" }}{{ end }}
+    {{ define "slack.default.text" }}{{ end }}
+    
+    {{ define "pagerduty.default.description" }}{{ template "__subject" . }}{{ end }}
+    {{ define "pagerduty.default.client" }}GeoVision Alertmanager{{ end }}
+    {{ define "pagerduty.default.clientURL" }}{{ template "__alertmanagerURL" . }}{{ end }}
+    {{ define "pagerduty.default.instances" }}{{ template "__text_alert_list" . }}{{ end }}
+    
+    {{ define "email.default.subject" }}{{ template "__subject" . }}{{ end }}
+    {{ define "email.default.html" }}
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>{{ template "__subject" . }}</title>
+    <style>
+    /* Global styles */
+    body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; background-color: #f6f6f6; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #2c3e50; color: #ffffff; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .alert { margin-bottom: 20px; padding: 15px; border-left: 4px solid #ddd; }
+    .alert.firing { border-left-color: #e74c3c; background-color: #fdf2f2; }
+    .alert.resolved { border-left-color: #27ae60; background-color: #f2fdf2; }
+    .labels { margin-top: 10px; }
+    .label { display: inline-block; background-color: #ecf0f1; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 12px; }
+    .footer { background-color: #34495e; color: #ffffff; padding: 20px; text-align: center; font-size: 12px; }
+    </style>
+    </head>
+    <body>
+    <div class="container">
+      <div class="header">
+        <h1>GeoVision AI Miner Alert</h1>
+        <p>{{ .Status | title }} - {{ .Alerts | len }} alert(s)</p>
+      </div>
+      <div class="content">
+        {{ range .Alerts }}
+        <div class="alert {{ .Status }}">
+          <h3>{{ .Annotations.summary }}</h3>
+          <p>{{ .Annotations.description }}</p>
+          <div class="labels">
+            {{ range .Labels.SortedPairs }}
+            <span class="label">{{ .Name }}: {{ .Value }}</span>
+            {{ end }}
+          </div>
+          <p><strong>Started:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}</p>
+          {{ if .EndsAt }}<p><strong>Ended:</strong> {{ .EndsAt.Format "2006-01-02 15:04:05 UTC" }}</p>{{ end }}
+        </div>
+        {{ end }}
+      </div>
+      <div class="footer">
+        <p>GeoMiner by ProspectIQ Labs LLC</p>
+        <p><a href="{{ .ExternalURL }}" style="color: #3498db;">View in Alertmanager</a> | <a href="https://grafana.geo-miner.com" style="color: #3498db;">View in Grafana</a></p>
+      </div>
+    </div>
+    </body>
+    </html>
+    {{ end }}

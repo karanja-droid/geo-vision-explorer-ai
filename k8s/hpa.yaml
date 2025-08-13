@@ -1,0 +1,246 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: geovision-backend-hpa
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: geovision-backend
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+  - type: Object
+    object:
+      metric:
+        name: requests_per_second
+      describedObject:
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        name: geovision-ingress
+      target:
+        type: Value
+        value: "1000"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+      selectPolicy: Max
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: geovision-frontend-hpa
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: frontend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: geovision-frontend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 20
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+
+---
+# Vertical Pod Autoscaler for backend
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: geovision-backend-vpa
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: backend
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: geovision-backend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: backend
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# Vertical Pod Autoscaler for frontend
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: geovision-frontend-vpa
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: frontend
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: geovision-frontend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: nginx
+      minAllowed:
+        cpu: 50m
+        memory: 64Mi
+      maxAllowed:
+        cpu: 1000m
+        memory: 1Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# Pod Disruption Budget for backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: geovision-backend-pdb
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: geovision-ai-miner
+      component: backend
+
+---
+# Pod Disruption Budget for frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: geovision-frontend-pdb
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: geovision-ai-miner
+      component: frontend
+
+---
+# Custom Resource for KEDA (Kubernetes Event-driven Autoscaling)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: geovision-backend-keda
+  namespace: geovision-ai-miner
+  labels:
+    app: geovision-ai-miner
+    component: backend
+spec:
+  scaleTargetRef:
+    name: geovision-backend
+  minReplicaCount: 3
+  maxReplicaCount: 50
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus-server.monitoring.svc.cluster.local:80
+      metricName: http_requests_per_second
+      threshold: '100'
+      query: sum(rate(http_requests_total{job="geovision-backend"}[1m]))
+  - type: redis
+    metadata:
+      address: redis-service.geovision-ai-miner.svc.cluster.local:6379
+      listName: job_queue
+      listLength: '10'
+      passwordFromEnv: REDIS_PASSWORD
+  - type: cpu
+    metadata:
+      type: Utilization
+      value: '70'
+  - type: memory
+    metadata:
+      type: Utilization
+      value: '80'

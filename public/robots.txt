@@ -1,14 +1,23 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+
+# Sitemap location
+Sitemap: https://geo-miner.com/sitemap.xml
+
+# Disallow admin and API endpoints
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /static/
+
+# Allow specific paths
+Allow: /dashboard
+Allow: /projects
+Allow: /sites
+Allow: /minerals
+Allow: /predictions
+Allow: /analytics
+Allow: /drill-data
+
+# Crawl delay (optional)
+Crawl-delay: 1

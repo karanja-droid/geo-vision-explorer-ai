@@ -1,0 +1,63 @@
+[build]
+  # Build command
+  command = "npm run build"
+  
+  # Directory to publish (Vite builds to 'dist' by default)
+  publish = "dist"
+
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "18"
+  
+  # NPM version
+  NPM_VERSION = "9"
+
+# Domain redirects for migration
+[[redirects]]
+  from = "https://www.geo-miner.com/*"
+  to = "https://geo-miner.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://sunny-pasca-eed8fc.netlify.app/*"
+  to = "https://geo-miner.com/:splat"
+  status = 301
+  force = true
+
+# SPA redirect rules (backup to _redirects file)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.mapbox.com; style-src 'self' 'unsafe-inline' https://api.mapbox.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.mapbox.com https://api.geo-miner.com https://api.staging.geo-miner.com wss://*.supabase.co;"
+
+# Cache static assets
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Environment variables (you'll need to set these in Netlify dashboard)
+# VITE_SUPABASE_URL = "your-supabase-url"
+# VITE_SUPABASE_ANON_KEY = "your-supabase-anon-key"
+# VITE_MAPBOX_TOKEN = "your-mapbox-token"

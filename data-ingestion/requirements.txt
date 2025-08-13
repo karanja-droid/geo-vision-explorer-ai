@@ -1,0 +1,64 @@
+# GeoVision AI Miner - Data Ingestion Pipeline Requirements
+
+# Core dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+asyncio-mqtt>=0.13.0
+
+# Geospatial libraries
+geopandas>=0.13.0
+rasterio>=1.3.0
+shapely>=2.0.0
+pyproj>=3.4.0
+fiona>=1.9.0
+
+# STAC libraries
+pystac>=1.8.0
+pystac-client>=0.7.0
+
+# Cloud storage
+boto3>=1.26.0
+botocore>=1.29.0
+
+# Database
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+
+# Data processing
+openpyxl>=3.1.0
+xlrd>=2.0.0
+lxml>=4.9.0
+
+# HTTP and async
+httpx>=0.25.0
+aiofiles>=23.2.0
+aiohttp>=3.8.0
+
+# Validation and quality
+jsonschema>=4.17.0
+cerberus>=1.3.4
+
+# Utilities
+python-dotenv>=1.0.0
+click>=8.1.0
+tqdm>=4.65.0
+pathlib2>=2.3.7
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Performance monitoring (optional)
+psutil>=5.9.0
+
+# Document processing (for ESG data)
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+
+# Scientific computing
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Visualization (for QA/QC reports)
+matplotlib>=3.7.0
+plotly>=5.15.0

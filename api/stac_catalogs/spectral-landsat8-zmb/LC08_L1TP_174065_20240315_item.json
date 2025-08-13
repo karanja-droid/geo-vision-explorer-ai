@@ -1,0 +1,133 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "id": "LC08_L1TP_174065_20240315",
+  "collection": "spectral-landsat8-zmb",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [27.5, -13.5],
+        [29.0, -13.5],
+        [29.0, -12.0],
+        [27.5, -12.0],
+        [27.5, -13.5]
+      ]
+    ]
+  },
+  "bbox": [27.5, -13.5, 29.0, -12.0],
+  "properties": {
+    "datetime": "2024-03-15T10:30:00Z",
+    "platform": "landsat-8",
+    "instruments": ["oli", "tirs"],
+    "gsd": 30,
+    "eo:cloud_cover": 15.2,
+    "geological:data_type": "spectral",
+    "geological:target_mineral": "copper",
+    "geological:confidence": 0.87,
+    "geological:processing_level": "L1TP",
+    "geological:survey_type": "satellite",
+    "geological:mineral_potential": "high",
+    "created": "2024-03-16T08:00:00Z",
+    "updated": "2024-03-16T08:00:00Z"
+  },
+  "assets": {
+    "thumbnail": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/spectral/landsat8/zmb/LC08_L1TP_174065_20240315_thumb.jpg",
+      "type": "image/jpeg",
+      "title": "Thumbnail",
+      "roles": ["thumbnail"]
+    },
+    "B1": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/spectral/landsat8/zmb/LC08_L1TP_174065_20240315_B1.TIF",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Band 1 (Coastal)",
+      "eo:bands": [
+        {
+          "name": "B1",
+          "common_name": "coastal",
+          "center_wavelength": 0.44
+        }
+      ],
+      "roles": ["data"]
+    },
+    "B2": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/spectral/landsat8/zmb/LC08_L1TP_174065_20240315_B2.TIF",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Band 2 (Blue)",
+      "eo:bands": [
+        {
+          "name": "B2",
+          "common_name": "blue",
+          "center_wavelength": 0.48
+        }
+      ],
+      "roles": ["data"]
+    },
+    "B3": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/spectral/landsat8/zmb/LC08_L1TP_174065_20240315_B3.TIF",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Band 3 (Green)",
+      "eo:bands": [
+        {
+          "name": "B3",
+          "common_name": "green",
+          "center_wavelength": 0.56
+        }
+      ],
+      "roles": ["data"]
+    },
+    "B4": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/spectral/landsat8/zmb/LC08_L1TP_174065_20240315_B4.TIF",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Band 4 (Red)",
+      "eo:bands": [
+        {
+          "name": "B4",
+          "common_name": "red",
+          "center_wavelength": 0.65
+        }
+      ],
+      "roles": ["data"]
+    },
+    "B5": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/spectral/landsat8/zmb/LC08_L1TP_174065_20240315_B5.TIF",
+      "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+      "title": "Band 5 (NIR)",
+      "eo:bands": [
+        {
+          "name": "B5",
+          "common_name": "nir",
+          "center_wavelength": 0.86
+        }
+      ],
+      "roles": ["data"]
+    },
+    "mineral_analysis": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/analysis/spectral/LC08_L1TP_174065_20240315_mineral_analysis.json",
+      "type": "application/json",
+      "title": "AI Mineral Analysis Results",
+      "roles": ["metadata", "analysis"]
+    }
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./LC08_L1TP_174065_20240315_item.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "collection",
+      "href": "./collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "./collection.json",
+      "type": "application/json"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+  ]
+}

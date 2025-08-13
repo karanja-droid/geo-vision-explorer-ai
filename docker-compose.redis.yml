@@ -1,0 +1,304 @@
+# Redis Integration for GeoVision AI Miner
+# This file extends the main docker-compose.yml with Redis services
+
+version: '3.8'
+
+services:
+  # Redis Master Node
+  redis-master:
+    image: redis:7-alpine
+    container_name: geovision-redis-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_master_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis Replica Node 1
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: geovision-redis-replica-1
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_replica1_data:/data
+      - ./redis/redis-replica.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --replicaof redis-master 6379
+    depends_on:
+      - redis-master
+    environment:
+      - REDIS_REPLICATION_MODE=replica
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis Replica Node 2
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: geovision-redis-replica-2
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_replica2_data:/data
+      - ./redis/redis-replica.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --replicaof redis-master 6379
+    depends_on:
+      - redis-master
+    environment:
+      - REDIS_REPLICATION_MODE=replica
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis Sentinel 1
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: geovision-redis-sentinel-1
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+    networks:
+      - geovision-network
+    restart: unless-stopped
+
+  # Redis Sentinel 2
+  redis-sentinel-2:
+    image: redis:7-alpine
+    container_name: geovision-redis-sentinel-2
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+    networks:
+      - geovision-network
+    restart: unless-stopped
+
+  # Redis Sentinel 3
+  redis-sentinel-3:
+    image: redis:7-alpine
+    container_name: geovision-redis-sentinel-3
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+    networks:
+      - geovision-network
+    restart: unless-stopped
+
+  # Redis Cluster Node 1 (Alternative cluster setup)
+  redis-cluster-1:
+    image: redis:7-alpine
+    container_name: geovision-redis-cluster-1
+    ports:
+      - "7000:7000"
+      - "17000:17000"
+    volumes:
+      - redis_cluster1_data:/data
+      - ./redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --port 7000 --cluster-announce-port 7000 --cluster-announce-bus-port 17000
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    profiles:
+      - cluster
+
+  # Redis Cluster Node 2
+  redis-cluster-2:
+    image: redis:7-alpine
+    container_name: geovision-redis-cluster-2
+    ports:
+      - "7001:7001"
+      - "17001:17001"
+    volumes:
+      - redis_cluster2_data:/data
+      - ./redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --port 7001 --cluster-announce-port 7001 --cluster-announce-bus-port 17001
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    profiles:
+      - cluster
+
+  # Redis Cluster Node 3
+  redis-cluster-3:
+    image: redis:7-alpine
+    container_name: geovision-redis-cluster-3
+    ports:
+      - "7002:7002"
+      - "17002:17002"
+    volumes:
+      - redis_cluster3_data:/data
+      - ./redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --port 7002 --cluster-announce-port 7002 --cluster-announce-bus-port 17002
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    profiles:
+      - cluster
+
+  # Redis Cluster Node 4
+  redis-cluster-4:
+    image: redis:7-alpine
+    container_name: geovision-redis-cluster-4
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    volumes:
+      - redis_cluster4_data:/data
+      - ./redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --port 7003 --cluster-announce-port 7003 --cluster-announce-bus-port 17003
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    profiles:
+      - cluster
+
+  # Redis Cluster Node 5
+  redis-cluster-5:
+    image: redis:7-alpine
+    container_name: geovision-redis-cluster-5
+    ports:
+      - "7004:7004"
+      - "17004:17004"
+    volumes:
+      - redis_cluster5_data:/data
+      - ./redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --port 7004 --cluster-announce-port 7004 --cluster-announce-bus-port 17004
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    profiles:
+      - cluster
+
+  # Redis Cluster Node 6
+  redis-cluster-6:
+    image: redis:7-alpine
+    container_name: geovision-redis-cluster-6
+    ports:
+      - "7005:7005"
+      - "17005:17005"
+    volumes:
+      - redis_cluster6_data:/data
+      - ./redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --port 7005 --cluster-announce-port 7005 --cluster-announce-bus-port 17005
+    networks:
+      - geovision-network
+    restart: unless-stopped
+    profiles:
+      - cluster
+
+  # Redis Commander (Web UI for Redis management)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: geovision-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=master:redis-master:6379,replica1:redis-replica-1:6379,replica2:redis-replica-2:6379
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=geovision-redis-admin
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+    networks:
+      - geovision-network
+    restart: unless-stopped
+
+  # Redis Exporter for Prometheus monitoring
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: geovision-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis-master:6379
+      - REDIS_EXPORTER_LOG_FORMAT=json
+    depends_on:
+      - redis-master
+    networks:
+      - geovision-network
+    restart: unless-stopped
+
+  # Redis Insight (RedisLabs GUI)
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    container_name: geovision-redis-insight
+    ports:
+      - "8001:8001"
+    volumes:
+      - redis_insight_data:/db
+    depends_on:
+      - redis-master
+    networks:
+      - geovision-network
+    restart: unless-stopped
+
+volumes:
+  redis_master_data:
+    driver: local
+  redis_replica1_data:
+    driver: local
+  redis_replica2_data:
+    driver: local
+  redis_cluster1_data:
+    driver: local
+  redis_cluster2_data:
+    driver: local
+  redis_cluster3_data:
+    driver: local
+  redis_cluster4_data:
+    driver: local
+  redis_cluster5_data:
+    driver: local
+  redis_cluster6_data:
+    driver: local
+  redis_insight_data:
+    driver: local
+
+networks:
+  geovision-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

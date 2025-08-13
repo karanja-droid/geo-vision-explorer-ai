@@ -1,0 +1,98 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "id": "AERO_MAG_ZAF_20240401",
+  "collection": "magnetic-aeromagnetic-zaf",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [26.0, -26.5],
+        [27.5, -26.5],
+        [27.5, -25.0],
+        [26.0, -25.0],
+        [26.0, -26.5]
+      ]
+    ]
+  },
+  "bbox": [26.0, -26.5, 27.5, -25.0],
+  "properties": {
+    "datetime": "2024-04-01T09:15:00Z",
+    "platform": "aircraft",
+    "instruments": ["magnetometer"],
+    "gsd": 50,
+    "geological:data_type": "magnetic",
+    "geological:target_mineral": "platinum",
+    "geological:confidence": 0.89,
+    "geological:processing_level": "processed",
+    "geological:survey_type": "aeromagnetic",
+    "geological:mineral_potential": "high",
+    "geological:survey_altitude": 200,
+    "geological:line_spacing": 75,
+    "geological:magnetic_intensity_range": [-500, 2000],
+    "geological:anomaly_count": 47,
+    "created": "2024-04-02T16:20:00Z",
+    "updated": "2024-04-02T16:20:00Z"
+  },
+  "assets": {
+    "thumbnail": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/magnetic/aeromagnetic/zaf/AERO_MAG_ZAF_20240401_thumb.png",
+      "type": "image/png",
+      "title": "Magnetic Intensity Map Thumbnail",
+      "roles": ["thumbnail"]
+    },
+    "total_magnetic_intensity": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/magnetic/aeromagnetic/zaf/AERO_MAG_ZAF_20240401_tmi.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "Total Magnetic Intensity Grid",
+      "roles": ["data"]
+    },
+    "reduced_to_pole": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/magnetic/aeromagnetic/zaf/AERO_MAG_ZAF_20240401_rtp.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "Reduced to Pole Magnetic Data",
+      "roles": ["derived_data"]
+    },
+    "first_vertical_derivative": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/magnetic/aeromagnetic/zaf/AERO_MAG_ZAF_20240401_1vd.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "First Vertical Derivative",
+      "roles": ["derived_data"]
+    },
+    "anomaly_map": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/analysis/magnetic/AERO_MAG_ZAF_20240401_anomalies.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "AI-Detected Magnetic Anomalies",
+      "roles": ["derived_data", "analysis"]
+    },
+    "interpretation_report": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/analysis/magnetic/AERO_MAG_ZAF_20240401_interpretation.pdf",
+      "type": "application/pdf",
+      "title": "Geological Interpretation Report",
+      "roles": ["metadata", "analysis"]
+    },
+    "raw_data": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/magnetic/aeromagnetic/zaf/AERO_MAG_ZAF_20240401_raw.xyz",
+      "type": "text/plain",
+      "title": "Raw Survey Data (XYZ format)",
+      "roles": ["data"]
+    }
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./AERO_MAG_ZAF_20240401_item.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "collection",
+      "href": "./collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "./collection.json",
+      "type": "application/json"
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+name: Domain Configuration Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  validate-domains:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        pip install -r backend/requirements.txt || echo "Backend requirements not found"
+        
+    - name: Validate Frontend Environment Variables
+      run: |
+        echo "Validating frontend environment variables..."
+        
+        # Check production environment
+        if [ -f ".env.production" ]; then
+          echo "✓ Production environment file exists"
+          
+          # Check required variables
+          if grep -q "VITE_SITE_URL=" .env.production; then
+            echo "✓ VITE_SITE_URL found in production"
+          else
+            echo "✗ VITE_SITE_URL missing in .env.production"
+            exit 1
+          fi
+          
+          if grep -q "VITE_API_BASE_URL=" .env.production; then
+            echo "✓ VITE_API_BASE_URL found in production"
+          else
+            echo "✗ VITE_API_BASE_URL missing in .env.production"
+            exit 1
+          fi
+          
+          # Check for geo-miner.com domains
+          if grep -q "geo-miner.com" .env.production; then
+            echo "✓ Production uses geo-miner.com domain"
+          else
+            echo "✗ Production should use geo-miner.com domain"
+            exit 1
+          fi
+        else
+          echo "✗ .env.production file missing"
+          exit 1
+        fi
+        
+    - name: Validate Backend Environment Variables
+      run: |
+        echo "Validating backend environment variables..."
+        
+        # Check if BASE_URL is used in config
+        if grep -q "BASE_URL" backend/app/core/config.py; then
+          echo "✓ BASE_URL configuration found in backend"
+        else
+          echo "✗ BASE_URL configuration missing in backend"
+          exit 1
+        fi
+        
+        # Check if ALLOWED_ORIGINS is used
+        if grep -q "ALLOWED_ORIGINS" backend/app/core/config.py; then
+          echo "✓ ALLOWED_ORIGINS configuration found in backend"
+        else
+          echo "✗ ALLOWED_ORIGINS configuration missing in backend"
+          exit 1
+        fi
+        
+    - name: Check for Legacy Domain References
+      run: |
+        echo "Checking for legacy domain references..."
+        
+        # Define legacy domains to check for
+        LEGACY_DOMAINS=(
+          "geovision-ai-miner.com"
+          "sunny-pasca-eed8fc.netlify.app"
+          "localhost:3000"
+        )
+        
+        # Check source files for legacy domains
+        for domain in "${LEGACY_DOMAINS[@]}"; do
+          if grep -r "$domain" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null; then
+            echo "✗ Found legacy domain reference: $domain"
+            exit 1
+          fi
+        done
+        
+        echo "✓ No legacy domain references found in source code"
+        
+    - name: Validate Environment Configuration Module
+      run: |
+        echo "Validating environment configuration module..."
+        
+        if [ -f "src/config/env.ts" ]; then
+          echo "✓ Environment configuration module exists"
+          
+          # Check for required exports
+          if grep -q "export const SITE_URL" src/config/env.ts; then
+            echo "✓ SITE_URL export found"
+          else
+            echo "✗ SITE_URL export missing"
+            exit 1
+          fi
+          
+          if grep -q "export const API_BASE_URL" src/config/env.ts; then
+            echo "✓ API_BASE_URL export found"
+          else
+            echo "✗ API_BASE_URL export missing"
+            exit 1
+          fi
+          
+          # Check for runtime validation
+          if grep -q "getRequiredEnv" src/config/env.ts; then
+            echo "✓ Runtime validation found"
+          else
+            echo "✗ Runtime validation missing"
+            exit 1
+          fi
+        else
+          echo "✗ Environment configuration module missing"
+          exit 1
+        fi
+        
+    - name: Validate API Client Configuration
+      run: |
+        echo "Validating API client configuration..."
+        
+        if [ -f "src/lib/api-client.ts" ]; then
+          echo "✓ API client exists"
+          
+          # Check for environment import
+          if grep -q "from.*config/env" src/lib/api-client.ts; then
+            echo "✓ API client imports environment configuration"
+          else
+            echo "✗ API client missing environment configuration import"
+            exit 1
+          fi
+          
+          # Check for runtime validation
+          if grep -q "API_BASE_URL.*required" src/lib/api-client.ts; then
+            echo "✓ API client has runtime validation"
+          else
+            echo "✗ API client missing runtime validation"
+            exit 1
+          fi
+        else
+          echo "✗ API client missing"
+          exit 1
+        fi
+        
+    - name: Build Test (Frontend)
+      run: |
+        echo "Testing frontend build with environment validation..."
+        
+        # Set test environment variables
+        export VITE_SITE_URL=https://geo-miner.com
+        export VITE_API_BASE_URL=https://api.geo-miner.com
+        export VITE_SUPABASE_URL=https://test.supabase.co
+        export VITE_SUPABASE_ANON_KEY=test_key
+        export VITE_ENVIRONMENT=production
+        
+        # Attempt build
+        npm run build
+        
+        echo "✓ Frontend build successful with domain configuration"
+        
+    - name: Validate OpenAPI Configuration
+      run: |
+        echo "Validating OpenAPI server configuration..."
+        
+        # Check if main.py has custom_openapi function
+        if grep -q "custom_openapi" backend/app/main.py; then
+          echo "✓ Custom OpenAPI configuration found"
+        else
+          echo "✗ Custom OpenAPI configuration missing"
+          exit 1
+        fi
+        
+        # Check if BASE_URL is used in OpenAPI
+        if grep -q "settings.BASE_URL" backend/app/main.py; then
+          echo "✓ BASE_URL used in OpenAPI configuration"
+        else
+          echo "✗ BASE_URL missing from OpenAPI configuration"
+          exit 1
+        fi
+        
+    - name: Summary
+      run: |
+        echo "🎉 All domain configuration validations passed!"
+        echo "✓ Frontend environment variables configured"
+        echo "✓ Backend environment variables configured"
+        echo "✓ No legacy domain references found"
+        echo "✓ Environment configuration module valid"
+        echo "✓ API client configuration valid"
+        echo "✓ Frontend build successful"
+        echo "✓ OpenAPI configuration valid"

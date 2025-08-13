@@ -1,0 +1,98 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "id": "AVIRIS_BWA_20240620",
+  "collection": "hyperspectral-aviris-bwa",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [24.0, -22.0],
+        [25.5, -22.0],
+        [25.5, -20.5],
+        [24.0, -20.5],
+        [24.0, -22.0]
+      ]
+    ]
+  },
+  "bbox": [24.0, -22.0, 25.5, -20.5],
+  "properties": {
+    "datetime": "2024-06-20T11:45:00Z",
+    "platform": "aviris",
+    "instruments": ["aviris-ng"],
+    "gsd": 20,
+    "eo:cloud_cover": 5.1,
+    "geological:data_type": "hyperspectral",
+    "geological:target_mineral": "diamond",
+    "geological:confidence": 0.92,
+    "geological:processing_level": "L2A",
+    "geological:survey_type": "airborne",
+    "geological:mineral_potential": "very_high",
+    "geological:spectral_bands": 224,
+    "geological:kimberlite_indicators": ["garnet", "ilmenite", "chromite"],
+    "created": "2024-06-21T14:30:00Z",
+    "updated": "2024-06-21T14:30:00Z"
+  },
+  "assets": {
+    "thumbnail": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/hyperspectral/aviris/bwa/AVIRIS_BWA_20240620_thumb.jpg",
+      "type": "image/jpeg",
+      "title": "RGB Composite Thumbnail",
+      "roles": ["thumbnail"]
+    },
+    "hyperspectral_cube": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/hyperspectral/aviris/bwa/AVIRIS_BWA_20240620_cube.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "Hyperspectral Data Cube (224 bands)",
+      "roles": ["data"],
+      "eo:bands": [
+        {
+          "name": "band_001",
+          "center_wavelength": 0.38
+        },
+        {
+          "name": "band_224",
+          "center_wavelength": 2.51
+        }
+      ]
+    },
+    "mineral_map": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/analysis/hyperspectral/AVIRIS_BWA_20240620_mineral_map.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "AI-Generated Mineral Classification Map",
+      "roles": ["derived_data", "classification"]
+    },
+    "kimberlite_probability": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/analysis/hyperspectral/AVIRIS_BWA_20240620_kimberlite_prob.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "Kimberlite Probability Map",
+      "roles": ["derived_data", "analysis"]
+    },
+    "spectral_analysis": {
+      "href": "https://geovision-ai-miner-data.s3.amazonaws.com/analysis/hyperspectral/AVIRIS_BWA_20240620_spectral_analysis.json",
+      "type": "application/json",
+      "title": "Detailed Spectral Analysis Results",
+      "roles": ["metadata", "analysis"]
+    }
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./AVIRIS_BWA_20240620_item.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "collection",
+      "href": "./collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "./collection.json",
+      "type": "application/json"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+  ]
+}

@@ -1,0 +1,565 @@
+name: 🌍 GeoVision Data Ingest Pipeline
+
+on:
+  # Trigger on data uploads to specific paths
+  push:
+    paths:
+      - 'data/input/**'
+      - 'data/raw/**'
+      - 'geological-data/**'
+  
+  # Manual trigger for processing existing data
+  workflow_dispatch:
+    inputs:
+      data_path:
+        description: 'Path to data files to process'
+        required: true
+        default: 'data/input'
+      country:
+        description: 'Country code (e.g., ZMB, AUS, CAN)'
+        required: true
+        default: 'ZMB'
+      mineral_target:
+        description: 'Target mineral (e.g., gold, copper, iron)'
+        required: true
+        default: 'copper'
+      force_rebuild:
+        description: 'Force rebuild of existing COGs'
+        required: false
+        type: boolean
+        default: false
+
+  # Scheduled processing for regular data updates
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+  # Webhook trigger for external data sources
+  repository_dispatch:
+    types: [data-upload, satellite-data-available]
+
+env:
+  # S3 Configuration
+  GEOVISION_S3_BUCKET: s3://geovision-ai-miner-data
+  AWS_DEFAULT_REGION: us-west-2
+  
+  # Processing Configuration
+  GDAL_CACHEMAX: 2048
+  GDAL_NUM_THREADS: ALL_CPUS
+  GDAL_DISABLE_READDIR_ON_OPEN: EMPTY_DIR
+  
+  # STAC Configuration
+  STAC_API_BASE_URL: https://stac.geovision.ai
+  
+  # Notification Configuration
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+jobs:
+  detect-changes:
+    name: 🔍 Detect Data Changes
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_data: ${{ steps.check-data.outputs.has_new_data }}
+      data_files: ${{ steps.check-data.outputs.data_files }}
+      data_types: ${{ steps.check-data.outputs.data_types }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need previous commit to detect changes
+      
+      - name: Check for new data files
+        id: check-data
+        run: |
+          echo "🔍 Checking for new or modified data files..."
+          
+          # Get list of changed files
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - process specified path
+            DATA_PATH="${{ github.event.inputs.data_path }}"
+            CHANGED_FILES=$(find "$DATA_PATH" -name "*.tif" -o -name "*.tiff" -o -name "*.geotiff" 2>/dev/null || echo "")
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Scheduled run - check for files modified in last 24 hours
+            CHANGED_FILES=$(find data/ -name "*.tif" -o -name "*.tiff" -o -name "*.geotiff" -mtime -1 2>/dev/null || echo "")
+          else
+            # Push trigger - get changed files from git
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E '\.(tif|tiff|geotiff)$' || echo "")
+          fi
+          
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "has_new_data=true" >> $GITHUB_OUTPUT
+            echo "data_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            # Detect data types
+            DATA_TYPES=""
+            for file in $CHANGED_FILES; do
+              filename=$(basename "$file" | tr '[:upper:]' '[:lower:]')
+              if [[ "$filename" == *"hyperspectral"* || "$filename" == *"hyperion"* ]]; then
+                DATA_TYPES="$DATA_TYPES hyperspectral"
+              elif [[ "$filename" == *"magnetic"* || "$filename" == *"mag"* ]]; then
+                DATA_TYPES="$DATA_TYPES magnetic"
+              elif [[ "$filename" == *"gravity"* || "$filename" == *"grav"* ]]; then
+                DATA_TYPES="$DATA_TYPES gravity"
+              elif [[ "$filename" == *"core"* || "$filename" == *"drill"* ]]; then
+                DATA_TYPES="$DATA_TYPES core-imagery"
+              else
+                DATA_TYPES="$DATA_TYPES spectral"
+              fi
+            done
+            
+            DATA_TYPES=$(echo "$DATA_TYPES" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+            echo "data_types=$DATA_TYPES" >> $GITHUB_OUTPUT
+            
+            echo "✅ Found $(echo "$CHANGED_FILES" | wc -l) new/modified data files"
+            echo "📊 Data types detected: $DATA_TYPES"
+          else
+            echo "has_new_data=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No new data files detected"
+          fi
+
+  validate-data:
+    name: ✅ Validate Data Files
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_new_data == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup GDAL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin python3-gdal
+          gdalinfo --version
+      
+      - name: Validate data files
+        run: |
+          echo "🔍 Validating data files..."
+          
+          VALIDATION_FAILED=false
+          
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              echo "Validating: $file"
+              
+              # Check if file is a valid raster
+              if ! gdalinfo "$file" > /dev/null 2>&1; then
+                echo "❌ Invalid raster file: $file"
+                VALIDATION_FAILED=true
+                continue
+              fi
+              
+              # Check file size (warn if > 5GB)
+              FILE_SIZE=$(stat -c%s "$file" 2>/dev/null || echo "0")
+              if [ "$FILE_SIZE" -gt 5368709120 ]; then
+                echo "⚠️  Large file detected: $file ($(($FILE_SIZE / 1024 / 1024 / 1024))GB)"
+              fi
+              
+              # Check coordinate system
+              PROJ_INFO=$(gdalinfo "$file" | grep "Coordinate System is" || echo "No CRS")
+              echo "  CRS: $PROJ_INFO"
+              
+              # Check data type and bands
+              BAND_INFO=$(gdalinfo "$file" | grep "Band " | wc -l)
+              echo "  Bands: $BAND_INFO"
+              
+              echo "✅ Valid: $file"
+            else
+              echo "❌ File not found: $file"
+              VALIDATION_FAILED=true
+            fi
+          done <<< "${{ needs.detect-changes.outputs.data_files }}"
+          
+          if [ "$VALIDATION_FAILED" = true ]; then
+            echo "❌ Data validation failed"
+            exit 1
+          fi
+          
+          echo "✅ All data files validated successfully"
+
+  process-cogs:
+    name: 🏗️ Process COGs
+    runs-on: ubuntu-latest
+    needs: [detect-changes, validate-data]
+    if: needs.detect-changes.outputs.has_new_data == 'true'
+    
+    strategy:
+      matrix:
+        data_type: ${{ fromJson(needs.detect-changes.outputs.data_types) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup GDAL and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin python3-gdal make
+          
+          # Verify GDAL installation
+          gdalinfo --version
+          gdal_translate --version
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Process COGs for ${{ matrix.data_type }}
+        run: |
+          echo "🏗️ Processing ${{ matrix.data_type }} data to COG format..."
+          
+          COUNTRY="${{ github.event.inputs.country || 'ZMB' }}"
+          MINERAL_TARGET="${{ github.event.inputs.mineral_target || 'copper' }}"
+          PROCESSED_COUNT=0
+          FAILED_COUNT=0
+          
+          # Filter files by data type
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file" | tr '[:upper:]' '[:lower:]')
+              
+              # Check if file matches current data type
+              MATCHES_TYPE=false
+              case "${{ matrix.data_type }}" in
+                "hyperspectral")
+                  [[ "$filename" == *"hyperspectral"* || "$filename" == *"hyperion"* ]] && MATCHES_TYPE=true
+                  ;;
+                "magnetic")
+                  [[ "$filename" == *"magnetic"* || "$filename" == *"mag"* ]] && MATCHES_TYPE=true
+                  ;;
+                "gravity")
+                  [[ "$filename" == *"gravity"* || "$filename" == *"grav"* ]] && MATCHES_TYPE=true
+                  ;;
+                "core-imagery")
+                  [[ "$filename" == *"core"* || "$filename" == *"drill"* ]] && MATCHES_TYPE=true
+                  ;;
+                "spectral")
+                  [[ "$filename" != *"hyperspectral"* && "$filename" != *"magnetic"* && "$filename" != *"gravity"* && "$filename" != *"core"* ]] && MATCHES_TYPE=true
+                  ;;
+              esac
+              
+              if [ "$MATCHES_TYPE" = true ]; then
+                echo "Processing: $file"
+                
+                # Determine make target based on data type
+                case "${{ matrix.data_type }}" in
+                  "hyperspectral") MAKE_TARGET="hyperspectral-cog" ;;
+                  "magnetic") MAKE_TARGET="magnetic-cog" ;;
+                  "gravity") MAKE_TARGET="gravity-cog" ;;
+                  "core-imagery") MAKE_TARGET="core-imagery" ;;
+                  *) MAKE_TARGET="cog" ;;
+                esac
+                
+                # Process with Makefile
+                if make "$MAKE_TARGET" \
+                  INPUT="$file" \
+                  BUCKET="$GEOVISION_S3_BUCKET" \
+                  COUNTRY="$COUNTRY" \
+                  GEOLOGICAL_DATA_TYPE="${{ matrix.data_type }}" \
+                  MINERAL_TARGET="$MINERAL_TARGET"; then
+                  
+                  echo "✅ Successfully processed: $file"
+                  PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
+                else
+                  echo "❌ Failed to process: $file"
+                  FAILED_COUNT=$((FAILED_COUNT + 1))
+                fi
+              fi
+            fi
+          done <<< "${{ needs.detect-changes.outputs.data_files }}"
+          
+          echo "📊 Processing Summary for ${{ matrix.data_type }}:"
+          echo "  ✅ Processed: $PROCESSED_COUNT files"
+          echo "  ❌ Failed: $FAILED_COUNT files"
+          
+          # Set outputs for next job
+          echo "processed_count=$PROCESSED_COUNT" >> $GITHUB_OUTPUT
+          echo "failed_count=$FAILED_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            echo "⚠️  Some files failed to process"
+            exit 1
+          fi
+
+  generate-stac:
+    name: 📋 Generate STAC Catalogs
+    runs-on: ubuntu-latest
+    needs: [detect-changes, process-cogs]
+    if: needs.detect-changes.outputs.has_new_data == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          pip install -r tools/stac/requirements.txt
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Generate STAC catalogs
+        run: |
+          echo "📋 Generating STAC catalogs..."
+          
+          COUNTRY="${{ github.event.inputs.country || 'ZMB' }}"
+          MINERAL_TARGET="${{ github.event.inputs.mineral_target || 'copper' }}"
+          
+          # Generate comprehensive STAC catalog
+          python tools/stac/build_geological_stac.py \
+            --bucket "$GEOVISION_S3_BUCKET" \
+            --prefix "country/$COUNTRY/baseline/satellite" \
+            --country "$COUNTRY" \
+            --data-type "spectral" \
+            --sensor "landsat8" \
+            --target-mineral "$MINERAL_TARGET" \
+            --spatial-resolution 30 \
+            --spectral-bands 11 \
+            --output-dir "./stac_catalog_comprehensive"
+          
+          # Generate simple STAC catalog for quick access
+          python tools/stac/build_simple_stac.py \
+            --bucket "$GEOVISION_S3_BUCKET" \
+            --prefix "country/$COUNTRY/baseline/satellite" \
+            --country "$COUNTRY" \
+            --collection-id "geovision-$COUNTRY-baseline" \
+            --collection-title "GeoVision $COUNTRY Baseline Data" \
+            --output "./stac_catalog_simple"
+          
+          echo "✅ STAC catalogs generated successfully"
+      
+      - name: Upload STAC catalogs to S3
+        run: |
+          echo "☁️  Uploading STAC catalogs to S3..."
+          
+          COUNTRY="${{ github.event.inputs.country || 'ZMB' }}"
+          
+          # Upload comprehensive catalog
+          aws s3 sync ./stac_catalog_comprehensive/ \
+            "$GEOVISION_S3_BUCKET/stac/comprehensive/$COUNTRY/" \
+            --delete \
+            --acl bucket-owner-full-control
+          
+          # Upload simple catalog
+          aws s3 sync ./stac_catalog_simple/ \
+            "$GEOVISION_S3_BUCKET/stac/simple/$COUNTRY/" \
+            --delete \
+            --acl bucket-owner-full-control
+          
+          echo "✅ STAC catalogs uploaded to S3"
+
+  update-stac-api:
+    name: 🔄 Update STAC API
+    runs-on: ubuntu-latest
+    needs: [generate-stac]
+    if: needs.detect-changes.outputs.has_new_data == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Trigger STAC API cache refresh
+        run: |
+          echo "🔄 Refreshing STAC API cache..."
+          
+          # Clear Redis cache
+          if [ -n "${{ secrets.REDIS_URL }}" ]; then
+            curl -X POST "${{ secrets.STAC_API_URL }}/admin/cache/clear" \
+              -H "Authorization: Bearer ${{ secrets.STAC_API_TOKEN }}" || true
+          fi
+          
+          # Warm up cache with new catalogs
+          curl -f "$STAC_API_BASE_URL/collections" > /dev/null || true
+          curl -f "$STAC_API_BASE_URL/search?limit=1" > /dev/null || true
+          
+          echo "✅ STAC API cache refreshed"
+
+  run-tests:
+    name: 🧪 Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: [update-stac-api]
+    if: needs.detect-changes.outputs.has_new_data == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install test dependencies
+        run: |
+          pip install -r api/requirements.txt
+          pip install pytest pytest-asyncio httpx
+      
+      - name: Run STAC API tests
+        run: |
+          echo "🧪 Running STAC API integration tests..."
+          
+          cd api/
+          python -m pytest test_stac_api.py -v --tb=short
+          
+          echo "✅ All tests passed"
+      
+      - name: Test data accessibility
+        run: |
+          echo "🔍 Testing data accessibility..."
+          
+          # Test STAC API endpoints
+          curl -f "$STAC_API_BASE_URL/health" | jq '.status' | grep -q "healthy"
+          curl -f "$STAC_API_BASE_URL/collections" | jq '.collections | length' > /dev/null
+          curl -f "$STAC_API_BASE_URL/search?limit=1" | jq '.features | length' > /dev/null
+          
+          echo "✅ Data accessibility tests passed"
+
+  notify-completion:
+    name: 📢 Notify Completion
+    runs-on: ubuntu-latest
+    needs: [detect-changes, process-cogs, generate-stac, update-stac-api, run-tests]
+    if: always() && needs.detect-changes.outputs.has_new_data == 'true'
+    
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          if [ "${{ needs.process-cogs.result }}" = "success" ] && \
+             [ "${{ needs.generate-stac.result }}" = "success" ] && \
+             [ "${{ needs.update-stac-api.result }}" = "success" ] && \
+             [ "${{ needs.run-tests.result }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ Data ingest pipeline completed successfully" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ Data ingest pipeline failed" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            --data '{
+              "text": "${{ steps.status.outputs.message }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*GeoVision Data Ingest Pipeline*\n${{ steps.status.outputs.message }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Trigger:*\n${{ github.event_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Files Processed:*\n${{ needs.detect-changes.outputs.data_files }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Data Types:*\n${{ needs.detect-changes.outputs.data_types }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Browse Data"
+                      },
+                      "url": "${{ env.STAC_API_BASE_URL }}"
+                    }
+                  ]
+                }
+              ]
+            }'
+      
+      - name: Create GitHub issue on failure
+        if: steps.status.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Data Ingest Pipeline Failed',
+              body: `
+              ## Data Ingest Pipeline Failure
+              
+              **Workflow Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              **Trigger**: ${{ github.event_name }}
+              **Branch**: ${{ github.ref_name }}
+              
+              ### Failed Jobs
+              - Process COGs: ${{ needs.process-cogs.result }}
+              - Generate STAC: ${{ needs.generate-stac.result }}
+              - Update API: ${{ needs.update-stac-api.result }}
+              - Run Tests: ${{ needs.run-tests.result }}
+              
+              ### Data Files
+              \`\`\`
+              ${{ needs.detect-changes.outputs.data_files }}
+              \`\`\`
+              
+              Please investigate and resolve the issues.
+              `,
+              labels: ['bug', 'data-pipeline', 'urgent']
+            })
+
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [notify-completion]
+    if: always()
+    
+    steps:
+      - name: Cleanup temporary files
+        run: |
+          echo "🧹 Cleaning up temporary files..."
+          
+          # Clean up any temporary processing files
+          rm -rf /tmp/*_cog.tif /tmp/*.mbtiles 2>/dev/null || true
+          
+          # Clean up local STAC catalogs
+          rm -rf ./stac_catalog_* 2>/dev/null || true
+          
+          echo "✅ Cleanup completed"

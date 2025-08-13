@@ -1,0 +1,752 @@
+openapi: 3.1.0
+info:
+  title: Drill & Blast AI API
+  description: |
+    Comprehensive API for drill and blast analysis using 3D point cloud data, 
+    DataRobot machine learning, and advanced geometry processing.
+    
+    ## Features
+    - 3D point cloud processing and surface differencing
+    - Overbreak/underbreak analysis with volume calculations
+    - Hole deviation analysis and burden optimization
+    - Fragmentation analysis using computer vision
+    - DataRobot AutoML predictions for blast performance
+    - Export capabilities (DXF, GeoJSON, CSV, 3D wireframes)
+    
+    ## Authentication
+    All endpoints require JWT Bearer token authentication.
+    
+    ## Rate Limits
+    - 100 requests per hour for analysis submission
+    - 1000 requests per hour for status and results
+    
+  version: 1.0.0
+  contact:
+    name: GeoVision AI Support
+    email: support@geovision.ai
+    url: https://geovision.ai/support
+  license:
+    name: Proprietary
+    url: https://geovision.ai/license
+
+servers:
+  - url: https://api.geovision.ai/blast-analysis/v1
+    description: Production server
+  - url: https://staging-api.geovision.ai/blast-analysis/v1
+    description: Staging server
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /blast-analysis/run:
+    post:
+      summary: Submit blast analysis job
+      description: |
+        Submit a new blast analysis job with pre/post blast point clouds,
+        drilling data, and loading information. Returns a job ID for tracking.
+      operationId: submitBlastAnalysis
+      tags:
+        - Blast Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlastMetadata'
+            examples:
+              basic_analysis:
+                summary: Basic blast analysis
+                value:
+                  blast_id: "BLAST_2025_08_09_001"
+                  site: "Kabompo Pit A"
+                  crs: "EPSG:32735"
+                  design:
+                    final_wall_dxf: "s3://geovision-blast-data/design/final_wall.dxf"
+                    floor_elev_m: 1243.5
+                    bench_height_m: 15.0
+                  preblast:
+                    type: "pointcloud"
+                    uri: "s3://geovision-blast-data/pre/bench_pre.laz"
+                    captured_at: "2025-08-09T05:10:00Z"
+                    format: "laz"
+                  postblast:
+                    type: "pointcloud"
+                    uri: "s3://geovision-blast-data/post/bench_post.laz"
+                    captured_at: "2025-08-09T07:20:00Z"
+                    format: "laz"
+                  pattern_csv: "s3://geovision-blast-data/design/pattern.csv"
+                  loading_csv: "s3://geovision-blast-data/design/loading.csv"
+                  options:
+                    do_fragmentation: true
+                    resolution_cm: 10
+      responses:
+        '200':
+          description: Job submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+              example:
+                job_id: "JOB_ABC12345"
+                blast_id: "BLAST_2025_08_09_001"
+                status: "queued"
+                message: "Job submitted successfully"
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Validation failed"
+                details: "File not found: s3://bucket/missing-file.laz"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /blast-analysis/status/{job_id}:
+    get:
+      summary: Get job status
+      description: |
+        Get the current status and progress of a blast analysis job.
+        Returns real-time progress updates and estimated completion time.
+      operationId: getJobStatus
+      tags:
+        - Blast Analysis
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^JOB_[A-Z0-9]{8}$'
+          example: "JOB_ABC12345"
+      responses:
+        '200':
+          description: Job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+              examples:
+                queued:
+                  summary: Job queued
+                  value:
+                    job_id: "JOB_ABC12345"
+                    blast_id: "BLAST_2025_08_09_001"
+                    status: "queued"
+                    progress: 0.0
+                    message: "Waiting in queue"
+                processing:
+                  summary: Job processing
+                  value:
+                    job_id: "JOB_ABC12345"
+                    blast_id: "BLAST_2025_08_09_001"
+                    status: "processing"
+                    progress: 0.65
+                    message: "Computing surface differences"
+                    started_at: "2025-08-09T10:15:00Z"
+                    estimated_completion: "2025-08-09T10:25:00Z"
+                completed:
+                  summary: Job completed
+                  value:
+                    job_id: "JOB_ABC12345"
+                    blast_id: "BLAST_2025_08_09_001"
+                    status: "completed"
+                    progress: 1.0
+                    message: "Analysis completed successfully"
+                    started_at: "2025-08-09T10:15:00Z"
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /blast-analysis/results/{blast_id}:
+    get:
+      summary: Get blast analysis results
+      description: |
+        Retrieve comprehensive blast analysis results including metrics,
+        hole performance, predictions, and download links for exports.
+      operationId: getBlastResults
+      tags:
+        - Results
+      parameters:
+        - name: blast_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "BLAST_2025_08_09_001"
+      responses:
+        '200':
+          description: Results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlastResults'
+        '404':
+          description: Results not found
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /blast-analysis/download/{blast_id}/{artifact}:
+    get:
+      summary: Download analysis artifact
+      description: |
+        Download specific analysis artifacts such as DXF files, GeoJSON,
+        CSV reports, or 3D wireframes.
+      operationId: downloadArtifact
+      tags:
+        - Results
+      parameters:
+        - name: blast_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "BLAST_2025_08_09_001"
+        - name: artifact
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [layers.dxf, deviation.geojson, holes.csv, kpis.csv, wireframe.json]
+          example: "layers.dxf"
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Artifact not found
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /blast-analysis/upload:
+    post:
+      summary: Upload blast data file
+      description: |
+        Upload point cloud files, CSV data, or DXF designs to S3 storage.
+        Returns S3 URI for use in analysis submission.
+      operationId: uploadFile
+      tags:
+        - Data Management
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload
+                blast_id:
+                  type: string
+                  description: Associated blast ID
+                file_type:
+                  type: string
+                  enum: [preblast, postblast, pattern, loading, mwd, boretrack, design]
+                  description: Type of file being uploaded
+              required:
+                - file
+                - blast_id
+                - file_type
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '413':
+          description: File too large
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /blast-analysis/jobs:
+    get:
+      summary: List blast analysis jobs
+      description: |
+        List all blast analysis jobs for the authenticated user with
+        filtering and pagination options.
+      operationId: listJobs
+      tags:
+        - Job Management
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [queued, processing, completed, failed]
+      responses:
+        '200':
+          description: Jobs listed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check service health and dependencies
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is unhealthy
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BlastMetadata:
+      type: object
+      required:
+        - blast_id
+        - site
+        - crs
+        - design
+        - preblast
+        - postblast
+      properties:
+        blast_id:
+          type: string
+          description: Unique identifier for the blast
+          example: "BLAST_2025_08_09_001"
+        site:
+          type: string
+          description: Mine site name
+          example: "Kabompo Pit A"
+        crs:
+          type: string
+          description: Coordinate reference system
+          pattern: '^EPSG:\d+$'
+          example: "EPSG:32735"
+        design:
+          $ref: '#/components/schemas/BlastDesign'
+        preblast:
+          $ref: '#/components/schemas/BlastScan'
+        postblast:
+          $ref: '#/components/schemas/BlastScan'
+        pattern_csv:
+          type: string
+          description: S3 URI to drill pattern CSV file
+          example: "s3://bucket/pattern.csv"
+        loading_csv:
+          type: string
+          description: S3 URI to explosive loading CSV file
+        mwd_csv:
+          type: string
+          description: S3 URI to MWD (Measurement While Drilling) data
+        boretrack_csv:
+          type: string
+          description: S3 URI to borehole deviation survey data
+        options:
+          $ref: '#/components/schemas/BlastOptions'
+
+    BlastDesign:
+      type: object
+      required:
+        - floor_elev_m
+      properties:
+        final_wall_dxf:
+          type: string
+          description: S3 URI to final wall design DXF
+        floor_elev_m:
+          type: number
+          description: Floor elevation in meters
+          example: 1243.5
+        bench_height_m:
+          type: number
+          description: Bench height in meters
+          default: 15.0
+
+    BlastScan:
+      type: object
+      required:
+        - type
+        - uri
+        - captured_at
+      properties:
+        type:
+          type: string
+          enum: [pointcloud, mesh]
+          description: Type of 3D data
+        uri:
+          type: string
+          description: S3 URI to scan data file
+          example: "s3://bucket/scan.laz"
+        captured_at:
+          type: string
+          format: date-time
+          description: Scan capture timestamp
+        format:
+          type: string
+          enum: [laz, las, ply, obj, e57]
+          default: laz
+
+    BlastOptions:
+      type: object
+      properties:
+        do_fragmentation:
+          type: boolean
+          default: true
+          description: Enable fragmentation analysis
+        resolution_cm:
+          type: integer
+          minimum: 5
+          maximum: 50
+          default: 10
+          description: Processing resolution in centimeters
+        overbreak_threshold_cm:
+          type: number
+          default: 10.0
+          description: Overbreak threshold in centimeters
+        underbreak_threshold_cm:
+          type: number
+          default: -10.0
+          description: Underbreak threshold in centimeters
+        collar_dev_threshold_m:
+          type: number
+          default: 0.3
+          description: Collar deviation warning threshold in meters
+        toe_dev_threshold_m:
+          type: number
+          default: 1.0
+          description: Toe deviation warning threshold in meters
+
+    JobResponse:
+      type: object
+      required:
+        - job_id
+        - blast_id
+        - status
+      properties:
+        job_id:
+          type: string
+          pattern: '^JOB_[A-Z0-9]{8}$'
+          example: "JOB_ABC12345"
+        blast_id:
+          type: string
+          example: "BLAST_2025_08_09_001"
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        message:
+          type: string
+          description: Additional status message
+
+    JobStatus:
+      type: object
+      required:
+        - job_id
+        - blast_id
+        - status
+        - progress
+      properties:
+        job_id:
+          type: string
+          pattern: '^JOB_[A-Z0-9]{8}$'
+        blast_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        progress:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Job progress (0.0 to 1.0)
+        message:
+          type: string
+          description: Current processing step or error message
+        started_at:
+          type: string
+          format: date-time
+        estimated_completion:
+          type: string
+          format: date-time
+
+    BlastResults:
+      type: object
+      required:
+        - blast_id
+        - metrics
+        - holes
+        - files
+      properties:
+        blast_id:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/BlastMetrics'
+        holes:
+          type: array
+          items:
+            $ref: '#/components/schemas/HolePerformance'
+        files:
+          $ref: '#/components/schemas/ResultFiles'
+        explainability:
+          $ref: '#/components/schemas/ModelExplainability'
+
+    BlastMetrics:
+      type: object
+      properties:
+        overbreak_m3:
+          type: number
+          description: Overbreak volume in cubic meters
+          example: 150.4
+        underbreak_m3:
+          type: number
+          description: Underbreak volume in cubic meters
+          example: 38.9
+        overbreak_pct:
+          type: number
+          description: Overbreak percentage
+          example: 3.1
+        underbreak_pct:
+          type: number
+          description: Underbreak percentage
+          example: 0.8
+        swell_factor:
+          type: number
+          description: Swell factor (loose/in-situ volume ratio)
+          example: 1.28
+        powder_factor_kg_per_m3:
+          type: number
+          description: Powder factor in kg per cubic meter
+          example: 0.74
+        frag_p80_mm_actual:
+          type: number
+          description: Actual P80 fragmentation in millimeters
+          example: 265
+        frag_p80_mm_pred:
+          type: number
+          description: Predicted P80 fragmentation in millimeters
+          example: 250
+
+    HolePerformance:
+      type: object
+      properties:
+        hole_id:
+          type: string
+          example: "H-101"
+        collar_dev_m:
+          type: number
+          description: Collar deviation in meters
+          example: 0.24
+        toe_dev_m:
+          type: number
+          description: Toe deviation in meters
+          example: 1.6
+        burden_m:
+          type: number
+          description: Actual burden in meters
+          example: 3.1
+        status:
+          type: string
+          enum: [ok, warning, critical]
+          example: "warning"
+
+    ResultFiles:
+      type: object
+      properties:
+        dxf_bundle:
+          type: string
+          description: S3 URI to DXF layer bundle
+        deviation_geojson:
+          type: string
+          description: S3 URI to deviation heatmap GeoJSON
+        holes_csv:
+          type: string
+          description: S3 URI to hole performance CSV
+        kpis_csv:
+          type: string
+          description: S3 URI to KPI summary CSV
+        mesh_json:
+          type: string
+          description: S3 URI to 3D wireframe JSON
+
+    ModelExplainability:
+      type: object
+      properties:
+        model:
+          type: string
+          description: Model name and version
+          example: "overbreak_v12"
+        top_features:
+          type: array
+          items:
+            type: array
+            items:
+              oneOf:
+                - type: string
+                - type: number
+          description: Top contributing features with importance scores
+          example: [["toe_dev_m", 0.34], ["burden_var", 0.22], ["subdrill_m", 0.11]]
+
+    UploadResponse:
+      type: object
+      properties:
+        filename:
+          type: string
+        s3_uri:
+          type: string
+        size:
+          type: integer
+        content_type:
+          type: string
+
+    JobList:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobSummary'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    JobSummary:
+      type: object
+      properties:
+        job_id:
+          type: string
+        blast_id:
+          type: string
+        status:
+          type: string
+        progress:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        site_name:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+          properties:
+            redis:
+              type: string
+              enum: [ok, error]
+            database:
+              type: string
+              enum: [ok, error]
+            s3:
+              type: string
+              enum: [ok, error]
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Detailed error information
+        code:
+          type: string
+          description: Error code for programmatic handling
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized"
+            details: "Valid JWT token required"
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Rate limit exceeded"
+            details: "Maximum 100 requests per hour allowed"
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per hour
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time when rate limit resets (Unix timestamp)
+
+tags:
+  - name: Blast Analysis
+    description: Core blast analysis operations
+  - name: Results
+    description: Analysis results and exports
+  - name: Data Management
+    description: File upload and data management
+  - name: Job Management
+    description: Job tracking and management
+  - name: System
+    description: System health and monitoring

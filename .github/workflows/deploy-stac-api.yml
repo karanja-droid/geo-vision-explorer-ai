@@ -1,0 +1,390 @@
+name: 🚀 Deploy STAC API
+
+on:
+  # Deploy on STAC API changes
+  push:
+    branches: [main, develop]
+    paths:
+      - 'api/**'
+      - '.github/workflows/deploy-stac-api.yml'
+  
+  # Manual deployment trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: geovision/stac-api
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  test:
+    name: 🧪 Test STAC API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd api/
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+      
+      - name: Run tests
+        run: |
+          cd api/
+          python -m pytest test_stac_api.py -v --tb=short --junitxml=test-results.xml
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: api/test-results.xml
+
+  build:
+    name: 🏗️ Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: success() || github.event.inputs.force_deploy == 'true'
+    
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  deploy-staging:
+    name: 🧪 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop' || (github.event.inputs.environment == 'staging')
+    environment: staging
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      
+      - name: Deploy to ECS Staging
+        run: |
+          echo "🧪 Deploying to staging environment..."
+          
+          # Update ECS service with new image
+          aws ecs update-service \
+            --cluster geovision-staging \
+            --service stac-api-staging \
+            --force-new-deployment \
+            --task-definition stac-api-staging:$(aws ecs describe-task-definition \
+              --task-definition stac-api-staging \
+              --query 'taskDefinition.revision' \
+              --output text)
+          
+          # Wait for deployment to complete
+          aws ecs wait services-stable \
+            --cluster geovision-staging \
+            --services stac-api-staging
+          
+          echo "✅ Staging deployment completed"
+      
+      - name: Run smoke tests
+        run: |
+          echo "🔍 Running smoke tests against staging..."
+          
+          STAGING_URL="https://stac-staging.geovision.ai"
+          
+          # Wait for service to be ready
+          for i in {1..30}; do
+            if curl -f -s "$STAGING_URL/health" > /dev/null; then
+              echo "✅ Staging service is ready"
+              break
+            fi
+            echo "⏳ Waiting for staging service... ($i/30)"
+            sleep 10
+          done
+          
+          # Test key endpoints
+          curl -f "$STAGING_URL/health" | jq '.status' | grep -q "healthy"
+          curl -f "$STAGING_URL/" | jq '.type' | grep -q "Catalog"
+          curl -f "$STAGING_URL/collections" | jq '.collections' > /dev/null
+          
+          echo "✅ Smoke tests passed"
+
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event.inputs.environment == 'production')
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-west-2
+      
+      - name: Deploy to ECS Production
+        run: |
+          echo "🚀 Deploying to production environment..."
+          
+          # Blue-green deployment strategy
+          # Update task definition with new image
+          TASK_DEFINITION=$(aws ecs describe-task-definition \
+            --task-definition stac-api-production \
+            --query 'taskDefinition' \
+            --output json)
+          
+          # Update image in task definition
+          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ needs.build.outputs.image-tag }}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn) | del(.revision) | del(.status) | del(.requiresAttributes) | del(.placementConstraints) | del(.compatibilities) | del(.registeredAt) | del(.registeredBy)')
+          
+          # Register new task definition
+          NEW_REVISION=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEFINITION" \
+            --query 'taskDefinition.revision' \
+            --output text)
+          
+          # Update service with new task definition
+          aws ecs update-service \
+            --cluster geovision-production \
+            --service stac-api-production \
+            --task-definition stac-api-production:$NEW_REVISION
+          
+          # Wait for deployment to complete
+          aws ecs wait services-stable \
+            --cluster geovision-production \
+            --services stac-api-production
+          
+          echo "✅ Production deployment completed"
+      
+      - name: Run production health checks
+        run: |
+          echo "🏥 Running production health checks..."
+          
+          PRODUCTION_URL="https://stac.geovision.ai"
+          
+          # Wait for service to be ready
+          for i in {1..60}; do
+            if curl -f -s "$PRODUCTION_URL/health" > /dev/null; then
+              echo "✅ Production service is ready"
+              break
+            fi
+            echo "⏳ Waiting for production service... ($i/60)"
+            sleep 10
+          done
+          
+          # Comprehensive health checks
+          echo "Testing root catalog..."
+          curl -f "$PRODUCTION_URL/" | jq '.type' | grep -q "Catalog"
+          
+          echo "Testing collections..."
+          curl -f "$PRODUCTION_URL/collections" | jq '.collections | length' > /dev/null
+          
+          echo "Testing search..."
+          curl -f "$PRODUCTION_URL/search?limit=1" | jq '.features' > /dev/null
+          
+          echo "Testing geological endpoints..."
+          curl -f "$PRODUCTION_URL/geological/minerals/gold?limit=1" | jq '.features' > /dev/null
+          
+          echo "✅ All production health checks passed"
+      
+      - name: Update DNS and CDN
+        run: |
+          echo "🌐 Updating DNS and CDN configuration..."
+          
+          # Update CloudFront distribution (if using CDN)
+          if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+              --paths "/*"
+          fi
+          
+          echo "✅ DNS and CDN updated"
+
+  notify:
+    name: 📢 Notify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+      - name: Determine deployment status
+        id: status
+        run: |
+          STAGING_STATUS="${{ needs.deploy-staging.result }}"
+          PRODUCTION_STATUS="${{ needs.deploy-production.result }}"
+          
+          if [ "$STAGING_STATUS" = "success" ] && [ "$PRODUCTION_STATUS" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ STAC API deployed successfully to all environments" >> $GITHUB_OUTPUT
+          elif [ "$STAGING_STATUS" = "success" ] && [ "$PRODUCTION_STATUS" = "skipped" ]; then
+            echo "status=partial" >> $GITHUB_OUTPUT
+            echo "message=✅ STAC API deployed successfully to staging" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ STAC API deployment failed" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          COLOR="good"
+          if [ "${{ steps.status.outputs.status }}" = "failure" ]; then
+            COLOR="danger"
+          elif [ "${{ steps.status.outputs.status }}" = "partial" ]; then
+            COLOR="warning"
+          fi
+          
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            --data '{
+              "attachments": [
+                {
+                  "color": "'$COLOR'",
+                  "title": "STAC API Deployment",
+                  "text": "${{ steps.status.outputs.message }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ github.ref_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit",
+                      "value": "${{ github.sha }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Staging",
+                      "value": "${{ needs.deploy-staging.result }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Production",
+                      "value": "${{ needs.deploy-production.result }}",
+                      "short": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": "STAC API",
+                      "url": "https://stac.geovision.ai"
+                    }
+                  ]
+                }
+              ]
+            }'
+
+  rollback:
+    name: 🔄 Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: failure() && github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: Rollback production deployment
+        run: |
+          echo "🔄 Rolling back production deployment..."
+          
+          # Get previous task definition
+          PREVIOUS_REVISION=$(aws ecs describe-services \
+            --cluster geovision-production \
+            --services stac-api-production \
+            --query 'services[0].deployments[1].taskDefinition' \
+            --output text | cut -d':' -f2)
+          
+          if [ -n "$PREVIOUS_REVISION" ] && [ "$PREVIOUS_REVISION" != "None" ]; then
+            # Rollback to previous revision
+            aws ecs update-service \
+              --cluster geovision-production \
+              --service stac-api-production \
+              --task-definition "stac-api-production:$PREVIOUS_REVISION"
+            
+            # Wait for rollback to complete
+            aws ecs wait services-stable \
+              --cluster geovision-production \
+              --services stac-api-production
+            
+            echo "✅ Rollback completed to revision $PREVIOUS_REVISION"
+          else
+            echo "❌ No previous revision found for rollback"
+          fi

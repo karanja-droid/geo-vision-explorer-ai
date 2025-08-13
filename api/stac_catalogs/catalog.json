@@ -1,0 +1,47 @@
+{
+  "type": "Catalog",
+  "stac_version": "1.0.0",
+  "id": "geovision-root",
+  "title": "GeoVision AI Miner Root Catalog",
+  "description": "Root catalog for geological and geophysical datasets in Southern Africa",
+  "keywords": [
+    "geology",
+    "geophysics",
+    "mining",
+    "southern africa",
+    "mineral exploration"
+  ],
+  "providers": [
+    {
+      "name": "GeoVision AI Miner",
+      "roles": ["host", "processor"],
+      "url": "https://geovision.ai"
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "./catalog.json",
+      "type": "application/json",
+      "title": "Root Catalog"
+    },
+    {
+      "rel": "child",
+      "href": "./spectral-landsat8-zmb/collection.json",
+      "type": "application/json",
+      "title": "Landsat 8 Spectral Data - Zambia"
+    },
+    {
+      "rel": "child",
+      "href": "./hyperspectral-aviris-bwa/collection.json",
+      "type": "application/json",
+      "title": "AVIRIS Hyperspectral Data - Botswana"
+    },
+    {
+      "rel": "child",
+      "href": "./magnetic-aeromagnetic-zaf/collection.json",
+      "type": "application/json",
+      "title": "Aeromagnetic Survey Data - South Africa"
+    }
+  ]
+}

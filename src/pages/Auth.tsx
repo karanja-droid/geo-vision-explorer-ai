@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, Session } from '@supabase/supabase-js';
+// import { EmailDebugger } from '@/components/EmailDebugger';
 
 const Auth = () => {
   const [email, setEmail] = useState('');

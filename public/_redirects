@@ -1,0 +1,14 @@
+# Netlify redirects for React Router (SPA)
+# This ensures all routes are handled by React Router
+
+# Handle all routes by serving index.html
+/*    /index.html   200
+
+# Optional: Redirect root to dashboard for authenticated users
+# /    /dashboard   302
+
+# API routes (if you have any backend endpoints)
+/api/*  https://your-supabase-url.supabase.co/rest/v1/:splat  200
+
+# Handle auth routes specifically
+/auth/*  /index.html  200

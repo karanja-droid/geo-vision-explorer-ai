@@ -1,0 +1,405 @@
+# GeoVision AI Miner - Beta Testing Environment
+# Kubernetes deployment configuration for beta testing phase
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: geovision-beta
+  labels:
+    environment: beta
+    app: geovision-ai-miner
+
+---
+# ConfigMap for beta environment configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: beta-config
+  namespace: geovision-beta
+data:
+  ENVIRONMENT: "beta"
+  LOG_LEVEL: "debug"
+  ENABLE_BETA_FEATURES: "true"
+  BETA_USER_LIMIT: "100"
+  FEEDBACK_COLLECTION: "enabled"
+  PERFORMANCE_MONITORING: "enabled"
+  FEATURE_FLAGS_ENABLED: "true"
+  REDIS_URL: "redis://redis-service:6379"
+  NEO4J_URL: "bolt://neo4j-service:7687"
+
+---
+# Secret for beta environment credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: beta-secrets
+  namespace: geovision-beta
+type: Opaque
+stringData:
+  SUPABASE_URL: "https://rgtyhffyvpqenrqnkfqc.supabase.co"
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJndHloZmZ5dnBxZW5ycW5rZnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM2NzI0NzEsImV4cCI6MjA0OTI0ODQ3MX0.TaGgCdWOYKYhGfWw7yCFKLqGBOaXpzGOOOOOOOOOOOO"
+  SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.service_role_key_here"
+  MAPBOX_ACCESS_TOKEN: "pk.eyJ1IjoiZ2VvdmlzaW9uIiwiYSI6ImNscXh5ejB6YjBhbmkyanBjZGc4YWJkZGcifQ.example_token"
+  STRIPE_SECRET_KEY: "sk_test_example_stripe_key"
+  SENTRY_DSN: "https://example@sentry.io/project"
+
+---
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-beta
+  namespace: geovision-beta
+  labels:
+    app: frontend
+    environment: beta
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+      environment: beta
+  template:
+    metadata:
+      labels:
+        app: frontend
+        environment: beta
+    spec:
+      containers:
+      - name: frontend
+        image: geovision/ai-miner-frontend:beta
+        ports:
+        - containerPort: 8080
+        env:
+        - name: VITE_ENVIRONMENT
+          value: "beta"
+        - name: VITE_SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: beta-secrets
+              key: SUPABASE_URL
+        - name: VITE_SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: beta-secrets
+              key: SUPABASE_ANON_KEY
+        - name: VITE_MAPBOX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: beta-secrets
+              key: MAPBOX_ACCESS_TOKEN
+        - name: VITE_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: beta-secrets
+              key: SENTRY_DSN
+        envFrom:
+        - configMapRef:
+            name: beta-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: geovision-beta
+  labels:
+    app: frontend
+    environment: beta
+spec:
+  selector:
+    app: frontend
+    environment: beta
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Redis Deployment for Caching
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-beta
+  namespace: geovision-beta
+  labels:
+    app: redis
+    environment: beta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      environment: beta
+  template:
+    metadata:
+      labels:
+        app: redis
+        environment: beta
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        command:
+        - redis-server
+        - --appendonly
+        - "yes"
+        - --maxmemory
+        - "256mb"
+        - --maxmemory-policy
+        - "allkeys-lru"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+      volumes:
+      - name: redis-data
+        emptyDir: {}
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: geovision-beta
+  labels:
+    app: redis
+    environment: beta
+spec:
+  selector:
+    app: redis
+    environment: beta
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Beta Monitoring - Prometheus
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-beta
+  namespace: geovision-beta
+  labels:
+    app: prometheus
+    environment: beta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      environment: beta
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        environment: beta
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        ports:
+        - containerPort: 9090
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus/
+        - --web.console.libraries=/etc/prometheus/console_libraries
+        - --web.console.templates=/etc/prometheus/consoles
+        - --web.enable-lifecycle
+        - --storage.tsdb.retention.time=7d
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus/
+        - name: prometheus-data
+          mountPath: /prometheus/
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-data
+        emptyDir: {}
+
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: geovision-beta
+  labels:
+    app: prometheus
+    environment: beta
+spec:
+  selector:
+    app: prometheus
+    environment: beta
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Prometheus Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: geovision-beta
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+    - job_name: 'frontend-beta'
+      static_configs:
+      - targets: ['frontend-service:80']
+      metrics_path: /metrics
+      scrape_interval: 10s
+    
+    - job_name: 'redis-beta'
+      static_configs:
+      - targets: ['redis-service:6379']
+      scrape_interval: 30s
+
+---
+# Ingress for Beta Environment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: beta-ingress
+  namespace: geovision-beta
+  labels:
+    app: geovision-ai-miner
+    environment: beta
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    - beta.geovision.ai
+    secretName: beta-tls-secret
+  rules:
+  - host: beta.geovision.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 80
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-service
+            port:
+              number: 9090
+
+---
+# Horizontal Pod Autoscaler for Frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: geovision-beta
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend-beta
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Network Policy for Beta Environment
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: beta-network-policy
+  namespace: geovision-beta
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          environment: beta
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 80   # HTTP
+    - protocol: TCP
+      port: 5432 # PostgreSQL (Supabase)
+    - protocol: TCP
+      port: 6379 # Redis

@@ -1,0 +1,363 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+  labels:
+    app: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'geovision-production'
+        environment: 'production'
+    
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+    
+    scrape_configs:
+      # Prometheus itself
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+        scrape_interval: 30s
+        metrics_path: /metrics
+      
+      # Kubernetes API Server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+      
+      # Kubernetes Nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+      
+      # Kubernetes Pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      
+      # GeoVision Backend Application
+      - job_name: 'geovision-backend'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - geovision-ai-miner
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: geovision-backend
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            target_label: service
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+        scrape_interval: 10s
+        metrics_path: /metrics
+      
+      # Redis Exporter
+      - job_name: 'redis-exporter'
+        static_configs:
+          - targets: ['redis-exporter:9121']
+        scrape_interval: 30s
+        relabel_configs:
+          - target_label: service
+            replacement: redis
+      
+      # Node Exporter
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_endpoints_name]
+            action: keep
+            regex: node-exporter
+          - source_labels: [__meta_kubernetes_endpoint_address_target_name]
+            target_label: node
+        scrape_interval: 30s
+      
+      # Nginx Ingress Controller
+      - job_name: 'nginx-ingress'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - ingress-nginx
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: ingress-nginx
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            action: keep
+            regex: "10254"
+        scrape_interval: 30s
+        metrics_path: /metrics
+      
+      # Kubernetes State Metrics
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics:8080']
+        scrape_interval: 30s
+      
+      # cAdvisor (Container metrics)
+      - job_name: 'kubernetes-cadvisor'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+        scrape_interval: 30s
+      
+      # Blackbox Exporter for endpoint monitoring
+      - job_name: 'blackbox-http'
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        static_configs:
+          - targets:
+            - https://geovision-ai-miner.com
+            - https://api.geovision-ai-miner.com/health
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: blackbox-exporter:9115
+        scrape_interval: 60s
+      
+      # Custom Geological Metrics
+      - job_name: 'geological-metrics'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - geovision-ai-miner
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape_geological]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+        scrape_interval: 15s
+        metrics_path: /geological-metrics
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+data:
+  geovision-alerts.yml: |
+    groups:
+    - name: geovision.rules
+      rules:
+      # High-level application alerts
+      - alert: GeoVisionHighErrorRate
+        expr: rate(http_requests_total{job="geovision-backend",status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: geovision-backend
+        annotations:
+          summary: "High error rate detected in GeoVision backend"
+          description: "Error rate is {{ $value }} errors per second for the last 5 minutes"
+      
+      - alert: GeoVisionHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="geovision-backend"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: geovision-backend
+        annotations:
+          summary: "High latency detected in GeoVision backend"
+          description: "95th percentile latency is {{ $value }}s for the last 5 minutes"
+      
+      - alert: GeoVisionDatabaseConnectionsHigh
+        expr: database_connections_active{job="geovision-backend"} > 15
+        for: 2m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High database connection count"
+          description: "Active database connections: {{ $value }}"
+      
+      - alert: GeoVisionRedisConnectionFailed
+        expr: redis_connected_clients{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis connection failed"
+          description: "No Redis clients connected"
+      
+      # Geological-specific alerts
+      - alert: GeoVisionAIAnalysisQueueBacklog
+        expr: ai_analysis_queue_size{job="geovision-backend"} > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-analysis
+        annotations:
+          summary: "AI analysis queue backlog"
+          description: "Queue size: {{ $value }} items"
+      
+      - alert: GeoVisionMineralPredictionAccuracyLow
+        expr: mineral_prediction_accuracy{job="geovision-backend"} < 0.75
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-analysis
+        annotations:
+          summary: "Mineral prediction accuracy below threshold"
+          description: "Current accuracy: {{ $value }}"
+      
+      - alert: GeoVisionMapTileLoadingFailed
+        expr: rate(map_tile_load_errors_total{job="geovision-backend"}[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          service: mapping
+        annotations:
+          summary: "High map tile loading error rate"
+          description: "Error rate: {{ $value }} errors per second"
+      
+      # Infrastructure alerts
+      - alert: KubernetesPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{namespace="geovision-ai-miner"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: kubernetes
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is restarting frequently"
+      
+      - alert: KubernetesNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: kubernetes
+        annotations:
+          summary: "Kubernetes node not ready"
+          description: "Node {{ $labels.node }} is not ready"
+      
+      - alert: KubernetesPodMemoryUsageHigh
+        expr: container_memory_usage_bytes{namespace="geovision-ai-miner"} / container_spec_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "Pod memory usage high"
+          description: "Pod {{ $labels.pod }} memory usage is {{ $value | humanizePercentage }}"
+      
+      - alert: KubernetesPodCPUUsageHigh
+        expr: rate(container_cpu_usage_seconds_total{namespace="geovision-ai-miner"}[5m]) / container_spec_cpu_quota * container_spec_cpu_period > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "Pod CPU usage high"
+          description: "Pod {{ $labels.pod }} CPU usage is {{ $value | humanizePercentage }}"
+      
+      # Business metrics alerts
+      - alert: GeoVisionActiveUsersLow
+        expr: active_users_count{job="geovision-backend"} < 10
+        for: 30m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "Low active user count"
+          description: "Active users: {{ $value }}"
+      
+      - alert: GeoVisionProjectCreationRateLow
+        expr: rate(projects_created_total{job="geovision-backend"}[1h]) < 0.01
+        for: 1h
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "Low project creation rate"
+          description: "Project creation rate: {{ $value }} per hour"

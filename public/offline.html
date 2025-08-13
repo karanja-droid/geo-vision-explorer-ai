@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoMiner - Offline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .offline-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .offline-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .offline-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .offline-message {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #a0a0a0;
+            margin-bottom: 32px;
+        }
+
+        .offline-features {
+            text-align: left;
+            margin-bottom: 32px;
+        }
+
+        .offline-features h3 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .offline-features ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .offline-features li {
+            padding: 8px 0;
+            color: #a0a0a0;
+            display: flex;
+            align-items: center;
+        }
+
+        .offline-features li::before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
+        .retry-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 12px;
+        }
+
+        .retry-button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .cache-button {
+            background: transparent;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .cache-button:hover {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 24px;
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            color: #fca5a5;
+            font-size: 14px;
+        }
+
+        .status-indicator.online {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.online .status-dot {
+            background: #10b981;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .cached-data {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .cached-data h4 {
+            color: #93c5fd;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .cached-data p {
+            color: #a0a0a0;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 480px) {
+            .offline-container {
+                padding: 24px;
+            }
+            
+            .offline-title {
+                font-size: 24px;
+            }
+            
+            .retry-button, .cache-button {
+                display: block;
+                width: 100%;
+                margin: 8px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">
+            🌐
+        </div>
+        
+        <h1 class="offline-title">You're Offline</h1>
+        
+        <p class="offline-message">
+            No internet connection detected. Don't worry - GeoMiner works offline too! 
+            You can still access your cached geological data and continue working.
+        </p>
+
+        <div class="offline-features">
+            <h3>Available Offline Features:</h3>
+            <ul>
+                <li>View cached geological projects</li>
+                <li>Access previously loaded site data</li>
+                <li>Review mineral analysis results</li>
+                <li>Browse offline maps (cached tiles)</li>
+                <li>Create and edit project notes</li>
+                <li>Export data to local files</li>
+            </ul>
+        </div>
+
+        <div>
+            <button class="retry-button" onclick="retryConnection()">
+                Try Again
+            </button>
+            <button class="cache-button" onclick="viewCachedData()">
+                View Cached Data
+            </button>
+        </div>
+
+        <div class="status-indicator" id="connectionStatus">
+            <div class="status-dot"></div>
+            <span>Offline - No internet connection</span>
+        </div>
+
+        <div class="cached-data" id="cachedDataInfo" style="display: none;">
+            <h4>Cached Data Available</h4>
+            <p id="cacheDetails">Loading cache information...</p>
+        </div>
+    </div>
+
+    <script>
+        // Check connection status
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connectionStatus');
+            const statusDot = statusElement.querySelector('.status-dot');
+            const statusText = statusElement.querySelector('span');
+
+            if (navigator.onLine) {
+                statusElement.classList.add('online');
+                statusText.textContent = 'Online - Connection restored';
+                
+                // Auto-reload after a short delay when back online
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                statusElement.classList.remove('online');
+                statusText.textContent = 'Offline - No internet connection';
+            }
+        }
+
+        // Retry connection
+        function retryConnection() {
+            if (navigator.onLine) {
+                window.location.reload();
+            } else {
+                // Try to navigate to the main app
+                window.location.href = '/';
+            }
+        }
+
+        // View cached data
+        function viewCachedData() {
+            const cachedDataElement = document.getElementById('cachedDataInfo');
+            const cacheDetails = document.getElementById('cacheDetails');
+            
+            cachedDataElement.style.display = 'block';
+            
+            // Check for cached data in service worker
+            if ('serviceWorker' in navigator && 'caches' in window) {
+                caches.keys().then(cacheNames => {
+                    let cacheInfo = `Found ${cacheNames.length} cache(s): `;
+                    cacheInfo += cacheNames.join(', ');
+                    
+                    // Get cache sizes
+                    Promise.all(
+                        cacheNames.map(name => 
+                            caches.open(name).then(cache => 
+                                cache.keys().then(keys => ({ name, count: keys.length }))
+                            )
+                        )
+                    ).then(cacheStats => {
+                        const totalItems = cacheStats.reduce((sum, cache) => sum + cache.count, 0);
+                        cacheDetails.textContent = `${totalItems} cached items available across ${cacheNames.length} cache stores. You can continue working with your previously loaded geological data.`;
+                    });
+                }).catch(() => {
+                    cacheDetails.textContent = 'Cache information unavailable, but some data may still be accessible offline.';
+                });
+            } else {
+                cacheDetails.textContent = 'Offline storage not supported in this browser.';
+            }
+        }
+
+        // Listen for connection changes
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+
+        // Initial status check
+        updateConnectionStatus();
+
+        // Auto-check cache data on load
+        setTimeout(viewCachedData, 1000);
+
+        // Register service worker if not already registered
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(error => {
+                console.log('Service Worker registration failed:', error);
+            });
+        }
+
+        // Handle back button
+        window.addEventListener('popstate', () => {
+            if (navigator.onLine) {
+                window.location.reload();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'r' && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                retryConnection();
+            } else if (event.key === 'c' && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                viewCachedData();
+            }
+        });
+    </script>
+</body>
+</html>

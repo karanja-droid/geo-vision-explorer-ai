@@ -1,0 +1,338 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: geovision-default-deny
+  namespace: geovision-ai-miner
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: geovision-backend-policy
+  namespace: geovision-ai-miner
+spec:
+  podSelector:
+    matchLabels:
+      app: geovision-ai-miner
+      component: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from frontend
+  - from:
+    - podSelector:
+        matchLabels:
+          app: geovision-ai-miner
+          component: frontend
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow ingress from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow monitoring scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow HTTPS to external APIs
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow HTTP for health checks
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 80
+  # Allow connection to Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: geovision-ai-miner
+          component: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow connection to Supabase (external)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: geovision-frontend-policy
+  namespace: geovision-ai-miner
+spec:
+  podSelector:
+    matchLabels:
+      app: geovision-ai-miner
+      component: frontend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+  # Allow ingress from load balancer
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow connection to backend
+  - to:
+    - podSelector:
+        matchLabels:
+          app: geovision-ai-miner
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: geovision-redis-policy
+  namespace: geovision-ai-miner
+spec:
+  podSelector:
+    matchLabels:
+      app: geovision-ai-miner
+      component: redis
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from backend only
+  - from:
+    - podSelector:
+        matchLabels:
+          app: geovision-ai-miner
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 6379
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-ingress-policy
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow access from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  # Allow access from geovision namespace for metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: geovision-ai-miner
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-egress-policy
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow HTTPS for external notifications
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow SMTP for email alerts
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 587
+    - protocol: TCP
+      port: 25
+  # Allow access to all namespaces for monitoring
+  - to:
+    - namespaceSelector: {}
+
+---
+# Calico GlobalNetworkPolicy (if using Calico CNI)
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: geovision-global-security
+spec:
+  order: 100
+  selector: has(kubernetes-namespace) && kubernetes-namespace == "geovision-ai-miner"
+  types:
+  - Ingress
+  - Egress
+  ingress:
+  # Block all traffic from other namespaces except monitoring and ingress
+  - action: Deny
+    source:
+      namespaceSelector: has(kubernetes-namespace) && kubernetes-namespace != "monitoring" && kubernetes-namespace != "ingress-nginx" && kubernetes-namespace != "geovision-ai-miner"
+  # Allow traffic within the same namespace
+  - action: Allow
+    source:
+      namespaceSelector: kubernetes-namespace == "geovision-ai-miner"
+  egress:
+  # Allow DNS
+  - action: Allow
+    protocol: UDP
+    destination:
+      ports: [53]
+  - action: Allow
+    protocol: TCP
+    destination:
+      ports: [53]
+  # Allow HTTPS
+  - action: Allow
+    protocol: TCP
+    destination:
+      ports: [443]
+  # Allow specific database ports
+  - action: Allow
+    protocol: TCP
+    destination:
+      ports: [5432, 6379]
+
+---
+# Pod Security Policy (deprecated in K8s 1.25+, use Pod Security Standards instead)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: geovision-psp
+  namespace: geovision-ai-miner
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: true
+  seLinux:
+    rule: 'RunAsAny'
+
+---
+# ClusterRole for PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: geovision-psp-user
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - geovision-psp
+
+---
+# ClusterRoleBinding for PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: geovision-psp-binding
+roleRef:
+  kind: ClusterRole
+  name: geovision-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: geovision-service-account
+  namespace: geovision-ai-miner

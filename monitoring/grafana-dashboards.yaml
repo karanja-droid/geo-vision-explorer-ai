@@ -1,0 +1,504 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geovision-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  geovision-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "GeoVision AI Miner - Overview",
+        "tags": ["geovision", "mining", "geological"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Active Users",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "active_users_count{job=\"geovision-backend\"}",
+                "legendFormat": "Active Users"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 10},
+                    {"color": "green", "value": 50}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Request Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job=\"geovision-backend\"}[5m]))",
+                "legendFormat": "Requests/sec"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "reqps",
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 100},
+                    {"color": "red", "value": 500}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Error Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job=\"geovision-backend\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"geovision-backend\"}[5m])) * 100",
+                "legendFormat": "Error Rate %"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 5}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Response Time (95th percentile)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"geovision-backend\"}[5m])) by (le))",
+                "legendFormat": "95th percentile"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "s",
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 2}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+          },
+          {
+            "id": 5,
+            "title": "HTTP Requests by Status Code",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job=\"geovision-backend\"}[5m])) by (status)",
+                "legendFormat": "{{status}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "reqps"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 6,
+            "title": "Response Time Distribution",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"geovision-backend\"}[5m])) by (le))",
+                "legendFormat": "50th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"geovision-backend\"}[5m])) by (le))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"geovision-backend\"}[5m])) by (le))",
+                "legendFormat": "99th percentile"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "s"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 7,
+            "title": "Database Connections",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "database_connections_active{job=\"geovision-backend\"}",
+                "legendFormat": "Active Connections"
+              },
+              {
+                "expr": "database_connections_idle{job=\"geovision-backend\"}",
+                "legendFormat": "Idle Connections"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 8,
+            "title": "Redis Operations",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(redis_commands_processed_total{job=\"redis-exporter\"}[5m])",
+                "legendFormat": "Commands/sec"
+              },
+              {
+                "expr": "redis_connected_clients{job=\"redis-exporter\"}",
+                "legendFormat": "Connected Clients"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geovision-geological-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  geological-metrics.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "GeoVision AI Miner - Geological Metrics",
+        "tags": ["geovision", "geological", "ai", "mining"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "AI Analysis Queue Size",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "ai_analysis_queue_size{job=\"geovision-backend\"}",
+                "legendFormat": "Queue Size"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 50},
+                    {"color": "red", "value": 100}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Mineral Prediction Accuracy",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "mineral_prediction_accuracy{job=\"geovision-backend\"}",
+                "legendFormat": "Accuracy"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 0.7},
+                    {"color": "green", "value": 0.8}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Active Projects",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "active_projects_count{job=\"geovision-backend\"}",
+                "legendFormat": "Active Projects"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Sites Under Analysis",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sites_under_analysis{job=\"geovision-backend\"}",
+                "legendFormat": "Sites"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+          },
+          {
+            "id": 5,
+            "title": "AI Analysis Processing Time",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(ai_analysis_duration_seconds_bucket{job=\"geovision-backend\"}[5m])) by (le))",
+                "legendFormat": "50th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(ai_analysis_duration_seconds_bucket{job=\"geovision-backend\"}[5m])) by (le))",
+                "legendFormat": "95th percentile"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "s"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 6,
+            "title": "Mineral Types Detected",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum(mineral_detections_total{job=\"geovision-backend\"}) by (mineral_type)",
+                "legendFormat": "{{mineral_type}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 7,
+            "title": "Map Tile Load Performance",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(map_tile_loads_total{job=\"geovision-backend\"}[5m])",
+                "legendFormat": "Successful Loads/sec"
+              },
+              {
+                "expr": "rate(map_tile_load_errors_total{job=\"geovision-backend\"}[5m])",
+                "legendFormat": "Errors/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 8,
+            "title": "Geological Data Processing",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "rate(geological_data_processed_bytes_total{job=\"geovision-backend\"}[5m])",
+                "legendFormat": "Data Processed (bytes/sec)"
+              },
+              {
+                "expr": "geological_data_processing_errors_total{job=\"geovision-backend\"}",
+                "legendFormat": "Processing Errors"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geovision-infrastructure-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  infrastructure-metrics.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "GeoVision AI Miner - Infrastructure",
+        "tags": ["geovision", "kubernetes", "infrastructure"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Pod Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(kube_pod_status_phase{namespace=\"geovision-ai-miner\",phase=\"Running\"})",
+                "legendFormat": "Running Pods"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 3},
+                    {"color": "green", "value": 5}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "CPU Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"geovision-ai-miner\"}[5m])) by (pod)",
+                "legendFormat": "{{pod}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Memory Usage",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(container_memory_usage_bytes{namespace=\"geovision-ai-miner\"}) by (pod)",
+                "legendFormat": "{{pod}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "bytes"
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Network I/O",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"geovision-ai-miner\"}[5m])) by (pod)",
+                "legendFormat": "{{pod}} - Received"
+              },
+              {
+                "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"geovision-ai-miner\"}[5m])) by (pod)",
+                "legendFormat": "{{pod}} - Transmitted"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "Bps"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Disk I/O",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "sum(rate(container_fs_reads_bytes_total{namespace=\"geovision-ai-miner\"}[5m])) by (pod)",
+                "legendFormat": "{{pod}} - Read"
+              },
+              {
+                "expr": "sum(rate(container_fs_writes_bytes_total{namespace=\"geovision-ai-miner\"}[5m])) by (pod)",
+                "legendFormat": "{{pod}} - Write"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "Bps"
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }

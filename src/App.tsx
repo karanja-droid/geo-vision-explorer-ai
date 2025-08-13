@@ -15,6 +15,7 @@ import Collaboration from "./pages/Collaboration";
 import Settings from "./pages/Settings";
 import Security from "./pages/Security";
 import Auth from "./pages/Auth";
+import EmailTest from "./pages/EmailTest";
 import NotFound from "./pages/NotFound";
 import { PricingPage } from "./components/PricingPage";
 
@@ -31,7 +32,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/dashboard/*" element={
+            <Route path="/email-test" element={<EmailTest />} />
+            <Route path="/*" element={
               <ProtectedRoute>
                 <Navigation />
                 <Routes>

@@ -1,0 +1,318 @@
+# Pod Security Standards (replacement for Pod Security Policies in K8s 1.25+)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: geovision-ai-miner
+  labels:
+    # Enforce restricted security standard
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Use latest version
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn-version: latest
+
+---
+# Security Context Constraints (OpenShift)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: geovision-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+- ALL
+fsGroup:
+  type: MustRunAs
+  ranges:
+  - min: 1000
+    max: 65535
+readOnlyRootFilesystem: true
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: MustRunAs
+  ranges:
+  - min: 1000
+    max: 65535
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+users:
+- system:serviceaccount:geovision-ai-miner:geovision-service-account
+
+---
+# OPA Gatekeeper Constraint Template
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: geovisionrequiredsecuritycontext
+spec:
+  crd:
+    spec:
+      names:
+        kind: GeoVisionRequiredSecurityContext
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            runAsNonRoot:
+              type: boolean
+            readOnlyRootFilesystem:
+              type: boolean
+            allowPrivilegeEscalation:
+              type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package geovisionrequiredsecuritycontext
+        
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.runAsNonRoot
+          msg := "Container must run as non-root user"
+        }
+        
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.readOnlyRootFilesystem
+          msg := "Container must have read-only root filesystem"
+        }
+        
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          container.securityContext.allowPrivilegeEscalation != false
+          msg := "Container must not allow privilege escalation"
+        }
+
+---
+# OPA Gatekeeper Constraint
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: GeoVisionRequiredSecurityContext
+metadata:
+  name: geovision-security-context
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+    namespaces: ["geovision-ai-miner"]
+  parameters:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+---
+# Falco Security Rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-rules
+  namespace: falco-system
+data:
+  geovision_rules.yaml: |
+    - rule: GeoVision Unauthorized Process in Container
+      desc: Detect unauthorized processes in GeoVision containers
+      condition: >
+        spawned_process and
+        container and
+        k8s.ns.name = "geovision-ai-miner" and
+        not proc.name in (node, nginx, redis-server, postgres)
+      output: >
+        Unauthorized process in GeoVision container
+        (user=%user.name command=%proc.cmdline container=%container.name
+        image=%container.image.repository:%container.image.tag)
+      priority: WARNING
+      tags: [geovision, process, container]
+    
+    - rule: GeoVision Sensitive File Access
+      desc: Detect access to sensitive files in GeoVision containers
+      condition: >
+        open_read and
+        container and
+        k8s.ns.name = "geovision-ai-miner" and
+        (fd.name startswith /etc/passwd or
+         fd.name startswith /etc/shadow or
+         fd.name startswith /etc/ssh/ or
+         fd.name contains "secret" or
+         fd.name contains "key")
+      output: >
+        Sensitive file accessed in GeoVision container
+        (user=%user.name file=%fd.name container=%container.name
+        image=%container.image.repository:%container.image.tag)
+      priority: WARNING
+      tags: [geovision, file, sensitive]
+    
+    - rule: GeoVision Network Connection to Suspicious Port
+      desc: Detect network connections to suspicious ports from GeoVision containers
+      condition: >
+        outbound and
+        container and
+        k8s.ns.name = "geovision-ai-miner" and
+        fd.sport in (22, 23, 135, 139, 445, 1433, 3389) and
+        not fd.sip in (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+      output: >
+        Suspicious network connection from GeoVision container
+        (user=%user.name connection=%fd.name container=%container.name
+        image=%container.image.repository:%container.image.tag)
+      priority: WARNING
+      tags: [geovision, network, suspicious]
+    
+    - rule: GeoVision Privilege Escalation Attempt
+      desc: Detect privilege escalation attempts in GeoVision containers
+      condition: >
+        spawned_process and
+        container and
+        k8s.ns.name = "geovision-ai-miner" and
+        (proc.name in (su, sudo, doas) or
+         proc.args contains "chmod +s" or
+         proc.args contains "setuid")
+      output: >
+        Privilege escalation attempt in GeoVision container
+        (user=%user.name command=%proc.cmdline container=%container.name
+        image=%container.image.repository:%container.image.tag)
+      priority: CRITICAL
+      tags: [geovision, privilege_escalation, security]
+
+---
+# Kube-bench Security Benchmark Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kube-bench-security-scan
+  namespace: geovision-ai-miner
+spec:
+  template:
+    spec:
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: kube-bench
+        image: aquasec/kube-bench:latest
+        command: ["kube-bench"]
+        args: ["--benchmark", "cis-1.6"]
+        volumeMounts:
+        - name: var-lib-etcd
+          mountPath: /var/lib/etcd
+          readOnly: true
+        - name: var-lib-kubelet
+          mountPath: /var/lib/kubelet
+          readOnly: true
+        - name: etc-systemd
+          mountPath: /etc/systemd
+          readOnly: true
+        - name: etc-kubernetes
+          mountPath: /etc/kubernetes
+          readOnly: true
+        - name: usr-bin
+          mountPath: /usr/local/mount-from-host/bin
+          readOnly: true
+      restartPolicy: Never
+      volumes:
+      - name: var-lib-etcd
+        hostPath:
+          path: "/var/lib/etcd"
+      - name: var-lib-kubelet
+        hostPath:
+          path: "/var/lib/kubelet"
+      - name: etc-systemd
+        hostPath:
+          path: "/etc/systemd"
+      - name: etc-kubernetes
+        hostPath:
+          path: "/etc/kubernetes"
+      - name: usr-bin
+        hostPath:
+          path: "/usr/bin"
+
+---
+# Trivy Vulnerability Scanner
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: trivy-vulnerability-scan
+  namespace: geovision-ai-miner
+spec:
+  schedule: "0 2 * * *"  # Run daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: trivy
+            image: aquasec/trivy:latest
+            command:
+            - sh
+            - -c
+            - |
+              trivy image --exit-code 1 --severity HIGH,CRITICAL geovision-ai-miner/backend:latest
+              trivy image --exit-code 1 --severity HIGH,CRITICAL nginx:1.25-alpine
+              trivy image --exit-code 1 --severity HIGH,CRITICAL redis:7-alpine
+            env:
+            - name: TRIVY_NO_PROGRESS
+              value: "true"
+            - name: TRIVY_CACHE_DIR
+              value: "/tmp/trivy"
+            volumeMounts:
+            - name: trivy-cache
+              mountPath: /tmp/trivy
+          volumes:
+          - name: trivy-cache
+            emptyDir: {}
+          restartPolicy: OnFailure
+
+---
+# RBAC for security scanning
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: security-scanner
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "statefulsets"]
+  verbs: ["get", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: security-scanner-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: security-scanner
+subjects:
+- kind: ServiceAccount
+  name: security-scanner
+  namespace: geovision-ai-miner
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-scanner
+  namespace: geovision-ai-miner

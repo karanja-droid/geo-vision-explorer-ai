@@ -1,0 +1,86 @@
+{
+  "type": "Collection",
+  "stac_version": "1.0.0",
+  "id": "hyperspectral-aviris-bwa",
+  "title": "AVIRIS Hyperspectral Data - Botswana",
+  "description": "AVIRIS hyperspectral imagery covering diamond and gold exploration areas in Botswana",
+  "keywords": [
+    "aviris",
+    "hyperspectral",
+    "diamond",
+    "gold",
+    "botswana",
+    "mining"
+  ],
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "NASA JPL",
+      "roles": ["producer"],
+      "url": "https://aviris.jpl.nasa.gov/"
+    },
+    {
+      "name": "GeoVision AI Miner",
+      "roles": ["processor", "host"],
+      "url": "https://geovision.ai"
+    }
+  ],
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [20.0, -27.0, 29.0, -17.0]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        ["2023-06-01T00:00:00Z", "2024-08-31T23:59:59Z"]
+      ]
+    }
+  },
+  "summaries": {
+    "platform": ["aviris"],
+    "instruments": ["aviris-ng"],
+    "gsd": [20],
+    "eo:bands": [
+      {
+        "name": "band_001",
+        "center_wavelength": 0.38,
+        "full_width_half_max": 0.005
+      },
+      {
+        "name": "band_224",
+        "center_wavelength": 2.51,
+        "full_width_half_max": 0.005
+      }
+    ],
+    "geological:data_type": ["hyperspectral"],
+    "geological:target_mineral": ["diamond", "gold", "kimberlite"],
+    "geological:confidence": [0.8, 0.98],
+    "geological:spectral_bands": [224]
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "items",
+      "href": "./items.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "./AVIRIS_BWA_20240620_item.json",
+      "type": "application/geo+json"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+  ]
+}

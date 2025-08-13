@@ -1,0 +1,277 @@
+# Drill & Blast AI - Local Development Environment
+version: '3.8'
+
+services:
+  # Ingest Service - Data intake and validation
+  blast-ingest:
+    build:
+      context: ./ingest
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/geovision_blast
+      - REDIS_URL=redis://redis:6379/0
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=blast-data
+      - JWT_SECRET=your-jwt-secret-here
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    volumes:
+      - ./ingest:/app
+      - blast_temp:/tmp/blast
+    networks:
+      - blast-network
+
+  # Geometry Service - 3D processing and analysis
+  blast-geom:
+    build:
+      context: ./geom
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=blast-data
+      - PROCESSING_WORKERS=4
+      - POINT_CLOUD_MEMORY_LIMIT=4Gi
+    depends_on:
+      - redis
+      - minio
+    volumes:
+      - ./geom:/app
+      - blast_temp:/tmp/processing
+      - blast_cache:/app/cache
+    networks:
+      - blast-network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+  # AI Service - DataRobot integration
+  blast-ai:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/geovision_blast
+      - DATAROBOT_ENDPOINT=${DATAROBOT_ENDPOINT}
+      - DATAROBOT_TOKEN=${DATAROBOT_TOKEN}
+      - OVERBREAK_DEPLOYMENT_ID=${OVERBREAK_DEPLOYMENT_ID}
+      - UNDERBREAK_DEPLOYMENT_ID=${UNDERBREAK_DEPLOYMENT_ID}
+      - FRAGMENTATION_DEPLOYMENT_ID=${FRAGMENTATION_DEPLOYMENT_ID}
+      - POWDER_FACTOR_DEPLOYMENT_ID=${POWDER_FACTOR_DEPLOYMENT_ID}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./ai:/app
+    networks:
+      - blast-network
+
+  # Results Service - Export and visualization
+  blast-results:
+    build:
+      context: ./results
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/geovision_blast
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=blast-results
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - minio
+      - redis
+    volumes:
+      - ./results:/app
+      - blast_exports:/app/exports
+    networks:
+      - blast-network
+
+  # DataRobot Portable Prediction Server (Mock for development)
+  datarobot-pps:
+    image: datarobot/portable-prediction-server:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DATAROBOT_API_TOKEN=${DATAROBOT_TOKEN}
+    volumes:
+      - ./models:/models
+    networks:
+      - blast-network
+
+  # Job Worker - Background processing
+  blast-worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/geovision_blast
+      - INGEST_SERVICE_URL=http://blast-ingest:8000
+      - GEOM_SERVICE_URL=http://blast-geom:8001
+      - AI_SERVICE_URL=http://blast-ai:8002
+      - RESULTS_SERVICE_URL=http://blast-results:8003
+    depends_on:
+      - blast-ingest
+      - blast-geom
+      - blast-ai
+      - blast-results
+      - redis
+      - postgres
+    volumes:
+      - ./worker:/app
+      - blast_temp:/tmp/blast
+    networks:
+      - blast-network
+    deploy:
+      replicas: 2
+
+  # API Gateway - Single entry point
+  blast-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - INGEST_SERVICE_URL=http://blast-ingest:8000
+      - GEOM_SERVICE_URL=http://blast-geom:8001
+      - AI_SERVICE_URL=http://blast-ai:8002
+      - RESULTS_SERVICE_URL=http://blast-results:8003
+      - JWT_SECRET=your-jwt-secret-here
+      - RATE_LIMIT_REQUESTS=100
+      - RATE_LIMIT_WINDOW=3600
+    depends_on:
+      - blast-ingest
+      - blast-geom
+      - blast-ai
+      - blast-results
+    volumes:
+      - ./gateway:/app
+    networks:
+      - blast-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgis/postgis:15-3.3
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=geovision_blast
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - blast-network
+
+  # Redis Cache and Job Queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - blast-network
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+
+  # MinIO (S3-compatible storage for development)
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - blast-network
+    command: server /data --console-address ":9001"
+
+  # MinIO Client - Create buckets
+  minio-client:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    networks:
+      - blast-network
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set minio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb minio/blast-data;
+      /usr/bin/mc mb minio/blast-results;
+      /usr/bin/mc mb minio/blast-models;
+      /usr/bin/mc policy set public minio/blast-results;
+      exit 0;
+      "
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - blast-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - blast-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+  blast_temp:
+  blast_cache:
+  blast_exports:
+
+networks:
+  blast-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

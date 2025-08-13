@@ -1,0 +1,72 @@
+{
+  "type": "Collection",
+  "stac_version": "1.0.0",
+  "id": "magnetic-aeromagnetic-zaf",
+  "title": "Aeromagnetic Survey Data - South Africa",
+  "description": "High-resolution aeromagnetic survey data covering platinum and gold mining regions in South Africa",
+  "keywords": [
+    "aeromagnetic",
+    "magnetic",
+    "platinum",
+    "gold",
+    "south africa",
+    "geophysics"
+  ],
+  "license": "CC-BY-4.0",
+  "providers": [
+    {
+      "name": "Council for Geoscience South Africa",
+      "roles": ["producer"],
+      "url": "https://www.geoscience.org.za/"
+    },
+    {
+      "name": "GeoVision AI Miner",
+      "roles": ["processor", "host"],
+      "url": "https://geovision.ai"
+    }
+  ],
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [16.0, -35.0, 33.0, -22.0]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        ["2023-01-01T00:00:00Z", "2024-12-31T23:59:59Z"]
+      ]
+    }
+  },
+  "summaries": {
+    "platform": ["aircraft"],
+    "instruments": ["magnetometer"],
+    "gsd": [50],
+    "geological:data_type": ["magnetic"],
+    "geological:target_mineral": ["platinum", "gold", "chromite"],
+    "geological:confidence": [0.75, 0.95],
+    "geological:survey_altitude": [150, 300],
+    "geological:line_spacing": [50, 100]
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "./collection.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json"
+    },
+    {
+      "rel": "items",
+      "href": "./items.json",
+      "type": "application/geo+json"
+    },
+    {
+      "rel": "item",
+      "href": "./AERO_MAG_ZAF_20240401_item.json",
+      "type": "application/geo+json"
+    }
+  ]
+}
