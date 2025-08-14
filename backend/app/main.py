@@ -28,6 +28,10 @@ from app.api.v1.geochemistry import router as geochemistry_router
 from app.api.v1.remote_sensing import router as remote_sensing_router
 from app.api.v1.spatial_vector import router as spatial_router
 from app.api.v1.prospectivity import router as prospectivity_router
+from app.api.v1.exports import router as exports_router
+from app.api.v1.executive import router as executive_router
+from app.api.v1.geologist import router as geologist_router
+from app.api.v1.driller import router as driller_router
 
 # Initialize logging
 setup_logging()
@@ -292,6 +296,34 @@ app.include_router(
     prospectivity_router,
     prefix="/api/v1/prospectivity",
     tags=["Prospectivity & AI"],
+    dependencies=[]
+)
+
+app.include_router(
+    exports_router,
+    prefix="/api/v1",
+    tags=["Exports & Reports"],
+    dependencies=[]
+)
+
+app.include_router(
+    executive_router,
+    prefix="/api/v1",
+    tags=["Executive"],
+    dependencies=[]
+)
+
+app.include_router(
+    geologist_router,
+    prefix="/api/v1",
+    tags=["Geologist"],
+    dependencies=[]
+)
+
+app.include_router(
+    driller_router,
+    prefix="/api/v1",
+    tags=["Driller"],
     dependencies=[]
 )
 

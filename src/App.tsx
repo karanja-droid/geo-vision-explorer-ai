@@ -14,6 +14,10 @@ import Projects from "./pages/Projects";
 import Sites from "./pages/Sites";
 import Analytics from "./pages/Analytics";
 import Collaboration from "./pages/Collaboration";
+import DataEntry from "./pages/DataEntry";
+import Executive from "./pages/Executive";
+import Geologist from "./pages/Geologist";
+import Driller from "./pages/Driller";
 import Settings from "./pages/Settings";
 import Security from "./pages/Security";
 import Auth from "./pages/Auth";
@@ -70,6 +74,34 @@ const App = () => (
               <ProtectedRoute>
                 <Navigation />
                 <Collaboration />
+                <HelpButton />
+              </ProtectedRoute>
+            } />
+            <Route path="/data-entry" element={
+              <ProtectedRoute>
+                <Navigation />
+                <DataEntry />
+                <HelpButton />
+              </ProtectedRoute>
+            } />
+            <Route path="/executive" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Executive />
+                <HelpButton />
+              </ProtectedRoute>
+            } />
+            <Route path="/geologist" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Geologist />
+                <HelpButton />
+              </ProtectedRoute>
+            } />
+            <Route path="/driller" element={
+              <ProtectedRoute>
+                <Navigation />
+                <Driller />
                 <HelpButton />
               </ProtectedRoute>
             } />
