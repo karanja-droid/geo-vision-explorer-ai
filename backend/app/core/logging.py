@@ -1,79 +1,86 @@
-"""Logging Configuration
-
-Centralized logging setup for the GeoVision AI Miner application.
+"""
+Logging configuration for the application
 """
 
 import logging
+import logging.config
 import sys
-from typing import Optional
+from typing import Dict, Any
 from pathlib import Path
 
-from app.core.config import settings
-
-
-def setup_logging(
-    level: str = "INFO",
-    log_file: Optional[str] = None,
-    format_string: Optional[str] = None
-) -> None:
+def setup_logging(log_level: str = "INFO") -> None:
     """Setup application logging configuration"""
     
-    if format_string is None:
-        format_string = (
-            "%(asctime)s - %(name)s - %(levelname)s - "
-            "%(filename)s:%(lineno)d - %(message)s"
-        )
+    # Create logs directory if it doesn't exist
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
     
-    # Configure root logger
-    logging.basicConfig(
-        level=getattr(logging, level.upper()),
-        format=format_string,
-        handlers=[]
-    )
+    logging_config: Dict[str, Any] = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S"
+            },
+            "detailed": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S"
+            },
+            "json": {
+                "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+                "format": "%(asctime)s %(name)s %(levelname)s %(module)s %(funcName)s %(lineno)d %(message)s"
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": log_level,
+                "formatter": "default",
+                "stream": sys.stdout
+            },
+            "file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": log_level,
+                "formatter": "detailed",
+                "filename": "logs/geominer.log",
+                "maxBytes": 10485760,  # 10MB
+                "backupCount": 5
+            },
+            "error_file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "ERROR",
+                "formatter": "detailed",
+                "filename": "logs/geominer_errors.log",
+                "maxBytes": 10485760,  # 10MB
+                "backupCount": 5
+            }
+        },
+        "loggers": {
+            "": {  # Root logger
+                "level": log_level,
+                "handlers": ["console", "file", "error_file"],
+                "propagate": False
+            },
+            "app": {
+                "level": log_level,
+                "handlers": ["console", "file", "error_file"],
+                "propagate": False
+            },
+            "uvicorn": {
+                "level": "INFO",
+                "handlers": ["console", "file"],
+                "propagate": False
+            },
+            "sqlalchemy.engine": {
+                "level": "WARNING",
+                "handlers": ["file"],
+                "propagate": False
+            }
+        }
+    }
     
-    # Create console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(getattr(logging, level.upper()))
-    console_formatter = logging.Formatter(format_string)
-    console_handler.setFormatter(console_formatter)
-    
-    # Add console handler to root logger
-    root_logger = logging.getLogger()
-    root_logger.addHandler(console_handler)
-    
-    # Create file handler if log file specified
-    if log_file:
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(getattr(logging, level.upper()))
-        file_formatter = logging.Formatter(format_string)
-        file_handler.setFormatter(file_formatter)
-        
-        root_logger.addHandler(file_handler)
-    
-    # Set specific logger levels
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.config.dictConfig(logging_config)
 
-
-def get_logger(name: str) -> logging.Logger:
-    """Get logger instance with specified name"""
-    return logging.getLogger(name)
-
-
-# Initialize logging
-setup_logging(
-    level="INFO",
-    log_file=None,  # Could be set from environment variable
-    format_string=(
-        "%(asctime)s - %(name)s - %(levelname)s - "
-        "%(filename)s:%(lineno)d - %(message)s"
-    )
-)
-
-# Create application logger
-logger = get_logger("geovision")
+# Create logger instance
+logger = logging.getLogger("app")

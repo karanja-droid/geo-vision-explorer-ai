@@ -12,10 +12,10 @@ from app.core.config import settings
 
 # Create database engine
 engine = create_engine(
-    settings.SQLALCHEMY_DATABASE_URI,
+    settings.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False  # Set to True for SQL debugging
+    echo=settings.ENVIRONMENT == "development"  # Enable SQL logging in development
 )
 
 # Create session factory
