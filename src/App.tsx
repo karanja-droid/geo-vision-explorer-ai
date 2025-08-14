@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Navigation from "@/components/Navigation";
+import { HelpButton } from "@/components/help/HelpButton";
+import { HelpSearchShortcut } from "@/components/help/HelpSearchDialog";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -19,6 +21,7 @@ import EmailTest from "./pages/EmailTest";
 import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 import { PricingPage } from "./components/PricingPage";
+import "@/styles/contextual-help.css";
 
 const queryClient = new QueryClient();
 
@@ -39,46 +42,54 @@ const App = () => (
               <ProtectedRoute>
                 <Navigation />
                 <Dashboard />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="/projects" element={
               <ProtectedRoute>
                 <Navigation />
                 <Projects />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="/sites" element={
               <ProtectedRoute>
                 <Navigation />
                 <Sites />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <Navigation />
                 <Analytics />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="/collaboration" element={
               <ProtectedRoute>
                 <Navigation />
                 <Collaboration />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Navigation />
                 <Settings />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="/security" element={
               <ProtectedRoute>
                 <Navigation />
                 <Security />
+                <HelpButton />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <HelpSearchShortcut />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

@@ -1,0 +1,27 @@
+# DNS Configuration for geo-miner.com
+# Generated on Wed Aug 13 04:23:42 PM CAT 2025
+
+## For Cloudflare DNS Management:
+Type    Name    Content                     Proxy   TTL
+CNAME   @       sunny-pasca-eed8fc.netlify.app            ON      Auto
+CNAME   www     sunny-pasca-eed8fc.netlify.app            ON      Auto
+
+## For Domain Registrar DNS:
+Type    Name    Value
+CNAME   @       sunny-pasca-eed8fc.netlify.app
+CNAME   www     sunny-pasca-eed8fc.netlify.app
+
+## Cloudflare SSL/TLS Settings:
+- SSL/TLS encryption mode: Full or Full (strict)
+- Always Use HTTPS: ON
+- Minimum TLS Version: 1.2
+- Opportunistic Encryption: ON
+- TLS 1.3: ON
+
+## Verification Commands:
+dig geo-miner.com
+nslookup geo-miner.com
+curl -I https://geo-miner.com
+
+## Working URL (use while fixing):
+https://sunny-pasca-eed8fc.netlify.app
