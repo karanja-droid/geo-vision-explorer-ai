@@ -1,0 +1,284 @@
+name: DAST Security Scan
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Daily at 3 AM UTC
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL for DAST scan'
+        required: false
+        default: 'https://geo-miner.com'
+      scan_type:
+        description: 'Type of scan to perform'
+        required: false
+        default: 'baseline'
+        type: choice
+        options:
+        - baseline
+        - full
+        - api
+
+env:
+  TARGET_URL: ${{ github.event.inputs.target_url || 'https://geo-miner.com' }}
+  SCAN_TYPE: ${{ github.event.inputs.scan_type || 'baseline' }}
+
+jobs:
+  zap-baseline:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    if: env.SCAN_TYPE == 'baseline' || env.SCAN_TYPE == 'full'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Create ZAP directories
+      run: |
+        mkdir -p zap-reports
+        mkdir -p .zap
+    
+    - name: ZAP Baseline Scan
+      uses: zaproxy/action-baseline@v0.7.0
+      with:
+        target: ${{ env.TARGET_URL }}
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a -d -T 60 -m 10'
+        allow_issue_writing: false
+    
+    - name: Upload ZAP Baseline Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: zap-baseline-report
+        path: |
+          report_html.html
+          report_json.json
+          report_md.md
+      if: always()
+
+  zap-full-scan:
+    name: ZAP Full Scan
+    runs-on: ubuntu-latest
+    if: env.SCAN_TYPE == 'full'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Create ZAP directories
+      run: |
+        mkdir -p zap-reports
+        mkdir -p .zap
+    
+    - name: ZAP Full Scan
+      uses: zaproxy/action-full-scan@v0.4.0
+      with:
+        target: ${{ env.TARGET_URL }}
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a -d -T 120 -m 30'
+        allow_issue_writing: false
+    
+    - name: Upload ZAP Full Scan Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: zap-full-scan-report
+        path: |
+          report_html.html
+          report_json.json
+          report_md.md
+      if: always()
+
+  zap-api-scan:
+    name: ZAP API Scan
+    runs-on: ubuntu-latest
+    if: env.SCAN_TYPE == 'api' || env.SCAN_TYPE == 'full'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Create ZAP directories
+      run: |
+        mkdir -p zap-reports
+        mkdir -p .zap
+    
+    - name: ZAP API Scan
+      uses: zaproxy/action-api-scan@v0.1.0
+      with:
+        target: '${{ env.TARGET_URL }}/api/v1'
+        format: openapi
+        api_spec: 'api-spec.json'
+        cmd_options: '-a -d -T 90'
+        allow_issue_writing: false
+    
+    - name: Upload ZAP API Scan Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: zap-api-scan-report
+        path: |
+          report_html.html
+          report_json.json
+          report_md.md
+      if: always()
+
+  nuclei-scan:
+    name: Nuclei Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Run Nuclei Scanner
+      uses: projectdiscovery/nuclei-action@main
+      with:
+        target: ${{ env.TARGET_URL }}
+        templates: |
+          cves/
+          vulnerabilities/
+          security-misconfiguration/
+          default-logins/
+        output: nuclei-results.json
+        json: true
+    
+    - name: Upload Nuclei Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuclei-scan-results
+        path: nuclei-results.json
+      if: always()
+
+  ssl-scan:
+    name: SSL/TLS Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Install testssl.sh
+      run: |
+        git clone --depth 1 https://github.com/drwetter/testssl.sh.git
+        chmod +x testssl.sh/testssl.sh
+    
+    - name: Run SSL/TLS Scan
+      run: |
+        ./testssl.sh/testssl.sh --jsonfile ssl-results.json --htmlfile ssl-results.html ${{ env.TARGET_URL }}
+      continue-on-error: true
+    
+    - name: Upload SSL Scan Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: ssl-scan-results
+        path: |
+          ssl-results.json
+          ssl-results.html
+      if: always()
+
+  security-headers:
+    name: Security Headers Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        pip install requests
+    
+    - name: Check Security Headers
+      run: |
+        python3 << 'EOF'
+        import requests
+        import json
+        
+        url = "${{ env.TARGET_URL }}"
+        
+        try:
+            response = requests.get(url, timeout=30)
+            headers = response.headers
+            
+            security_headers = {
+                'Strict-Transport-Security': headers.get('Strict-Transport-Security'),
+                'Content-Security-Policy': headers.get('Content-Security-Policy'),
+                'X-Frame-Options': headers.get('X-Frame-Options'),
+                'X-Content-Type-Options': headers.get('X-Content-Type-Options'),
+                'X-XSS-Protection': headers.get('X-XSS-Protection'),
+                'Referrer-Policy': headers.get('Referrer-Policy'),
+                'Permissions-Policy': headers.get('Permissions-Policy')
+            }
+            
+            results = {
+                'url': url,
+                'status_code': response.status_code,
+                'security_headers': security_headers,
+                'missing_headers': [k for k, v in security_headers.items() if v is None]
+            }
+            
+            with open('security-headers.json', 'w') as f:
+                json.dump(results, f, indent=2)
+                
+            print(f"Security headers check completed for {url}")
+            print(f"Missing headers: {results['missing_headers']}")
+            
+        except Exception as e:
+            print(f"Error checking security headers: {e}")
+        EOF
+    
+    - name: Upload Security Headers Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-headers-results
+        path: security-headers.json
+      if: always()
+
+  dast-summary:
+    name: DAST Summary Report
+    runs-on: ubuntu-latest
+    needs: [zap-baseline, zap-full-scan, zap-api-scan, nuclei-scan, ssl-scan, security-headers]
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+    
+    - name: Generate DAST Summary
+      run: |
+        echo "## 🌐 DAST Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Target URL:** ${{ env.TARGET_URL }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Type:** ${{ env.SCAN_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Tool | Status | Report |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ZAP Baseline | ${{ needs.zap-baseline.result }} | [Download](../actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+        echo "| ZAP Full Scan | ${{ needs.zap-full-scan.result }} | [Download](../actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+        echo "| ZAP API Scan | ${{ needs.zap-api-scan.result }} | [Download](../actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Nuclei | ${{ needs.nuclei-scan.result }} | [Download](../actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+        echo "| SSL/TLS | ${{ needs.ssl-scan.result }} | [Download](../actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Headers | ${{ needs.security-headers.result }} | [Download](../actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 All scan results are available as artifacts in this workflow run." >> $GITHUB_STEP_SUMMARY
+
+  notify-security-team:
+    name: Notify Security Team
+    runs-on: ubuntu-latest
+    needs: [dast-summary]
+    if: failure() && github.event_name == 'schedule'
+    
+    steps:
+    - name: Send Slack Notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#security-alerts'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_SECURITY }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        text: |
+          🚨 DAST Security Scan Failed
+          Target: ${{ env.TARGET_URL }}
+          Please review the scan results and take appropriate action.
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_SECURITY }}

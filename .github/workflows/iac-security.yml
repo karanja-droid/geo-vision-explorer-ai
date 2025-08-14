@@ -1,0 +1,358 @@
+name: IaC Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+    paths: 
+      - 'terraform/**'
+      - 'k8s/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'k8s/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '0 5 * * *'  # Daily at 5 AM UTC
+
+jobs:
+  terraform-security:
+    name: Terraform Security Scan
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'terraform/') || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+    
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive terraform/
+      continue-on-error: true
+    
+    - name: Terraform Init
+      run: |
+        cd terraform/
+        terraform init -backend=false
+    
+    - name: Terraform Validate
+      run: |
+        cd terraform/
+        terraform validate
+    
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: terraform/
+        framework: terraform
+        output_format: sarif
+        output_file_path: checkov-terraform.sarif
+        soft_fail: true
+        download_external_modules: true
+    
+    - name: Upload Checkov results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: checkov-terraform.sarif
+        category: checkov-terraform
+      if: always()
+    
+    - name: Run TFSec
+      uses: aquasecurity/tfsec-action@v1.0.0
+      with:
+        working_directory: terraform/
+        format: sarif
+        sarif_file: tfsec-results.sarif
+        soft_fail: true
+    
+    - name: Upload TFSec results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: tfsec-results.sarif
+        category: tfsec
+      if: always()
+    
+    - name: Run Terrascan
+      uses: tenable/terrascan-action@main
+      with:
+        iac_type: 'terraform'
+        iac_dir: 'terraform/'
+        policy_type: 'aws'
+        only_warn: true
+        sarif_upload: true
+    
+    - name: Upload Terrascan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: terrascan.sarif
+        category: terrascan
+      if: always()
+
+  kubernetes-security:
+    name: Kubernetes Security Scan
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'k8s/') || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run Kubesec
+      run: |
+        curl -sSX POST --data-binary @k8s/deployment.yaml https://v2.kubesec.io/scan > kubesec-deployment.json
+        curl -sSX POST --data-binary @k8s/service.yaml https://v2.kubesec.io/scan > kubesec-service.json
+        curl -sSX POST --data-binary @k8s/ingress.yaml https://v2.kubesec.io/scan > kubesec-ingress.json
+      continue-on-error: true
+    
+    - name: Upload Kubesec results
+      uses: actions/upload-artifact@v3
+      with:
+        name: kubesec-results
+        path: |
+          kubesec-*.json
+      if: always()
+    
+    - name: Run Polaris
+      run: |
+        curl -L https://github.com/FairwindsOps/polaris/releases/latest/download/polaris_linux_amd64.tar.gz | tar -xz
+        chmod +x polaris
+        ./polaris audit --audit-path k8s/ --format json > polaris-results.json
+        ./polaris audit --audit-path k8s/ --format sarif > polaris-results.sarif
+      continue-on-error: true
+    
+    - name: Upload Polaris SARIF results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: polaris-results.sarif
+        category: polaris
+      if: always()
+    
+    - name: Upload Polaris JSON results
+      uses: actions/upload-artifact@v3
+      with:
+        name: polaris-results
+        path: polaris-results.json
+      if: always()
+    
+    - name: Run Kube-score
+      run: |
+        curl -L https://github.com/zegl/kube-score/releases/latest/download/kube-score_linux_amd64.tar.gz | tar -xz
+        chmod +x kube-score
+        ./kube-score score k8s/*.yaml --output-format json > kube-score-results.json
+      continue-on-error: true
+    
+    - name: Upload Kube-score results
+      uses: actions/upload-artifact@v3
+      with:
+        name: kube-score-results
+        path: kube-score-results.json
+      if: always()
+
+  docker-compose-security:
+    name: Docker Compose Security Scan
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'docker-compose') || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run Checkov on Docker Compose
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: .
+        framework: docker_compose
+        output_format: sarif
+        output_file_path: checkov-docker-compose.sarif
+        soft_fail: true
+    
+    - name: Upload Checkov Docker Compose results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: checkov-docker-compose.sarif
+        category: checkov-docker-compose
+      if: always()
+
+  github-actions-security:
+    name: GitHub Actions Security Scan
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, '.github/workflows/') || github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run Checkov on GitHub Actions
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: .github/workflows/
+        framework: github_actions
+        output_format: sarif
+        output_file_path: checkov-github-actions.sarif
+        soft_fail: true
+    
+    - name: Upload Checkov GitHub Actions results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: checkov-github-actions.sarif
+        category: checkov-github-actions
+      if: always()
+    
+    - name: Run Actionlint
+      run: |
+        bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        ./actionlint -format '{{json .}}' .github/workflows/*.yml > actionlint-results.json
+      continue-on-error: true
+    
+    - name: Upload Actionlint results
+      uses: actions/upload-artifact@v3
+      with:
+        name: actionlint-results
+        path: actionlint-results.json
+      if: always()
+
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Run TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+    
+    - name: Run GitLeaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+    
+    - name: Upload GitLeaks results
+      uses: actions/upload-artifact@v3
+      with:
+        name: gitleaks-results
+        path: results.sarif
+      if: always()
+
+  cloud-security-posture:
+    name: Cloud Security Posture
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+      if: env.AWS_ACCESS_KEY_ID != ''
+    
+    - name: Run Prowler AWS Security Assessment
+      run: |
+        docker run --rm \
+          -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          -e AWS_DEFAULT_REGION=us-west-2 \
+          -v $(pwd):/prowler \
+          toniblyx/prowler:latest \
+          -M json-asff -f /prowler/prowler-results.json
+      continue-on-error: true
+      if: env.AWS_ACCESS_KEY_ID != ''
+    
+    - name: Upload Prowler results
+      uses: actions/upload-artifact@v3
+      with:
+        name: prowler-results
+        path: prowler-results.json
+      if: always() && env.AWS_ACCESS_KEY_ID != ''
+
+  iac-security-summary:
+    name: IaC Security Summary
+    runs-on: ubuntu-latest
+    needs: [terraform-security, kubernetes-security, docker-compose-security, github-actions-security, secrets-scan]
+    if: always()
+    
+    steps:
+    - name: Generate IaC Security Summary
+      run: |
+        echo "## 🏗️ Infrastructure as Code Security Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+        echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status | Tools |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Terraform | ${{ needs.terraform-security.result }} | Checkov, TFSec, Terrascan |" >> $GITHUB_STEP_SUMMARY
+        echo "| Kubernetes | ${{ needs.kubernetes-security.result }} | Kubesec, Polaris, Kube-score |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Compose | ${{ needs.docker-compose-security.result }} | Checkov |" >> $GITHUB_STEP_SUMMARY
+        echo "| GitHub Actions | ${{ needs.github-actions-security.result }} | Checkov, Actionlint |" >> $GITHUB_STEP_SUMMARY
+        echo "| Secrets | ${{ needs.secrets-scan.result }} | TruffleHog, GitLeaks |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔍 Security Findings" >> $GITHUB_STEP_SUMMARY
+        echo "- Review all findings in the Security tab" >> $GITHUB_STEP_SUMMARY
+        echo "- Address HIGH and CRITICAL severity issues first" >> $GITHUB_STEP_SUMMARY
+        echo "- Ensure no secrets are committed to the repository" >> $GITHUB_STEP_SUMMARY
+        echo "- Follow infrastructure security best practices" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 Detailed results are available as workflow artifacts and in the Security tab." >> $GITHUB_STEP_SUMMARY
+
+  security-policy-check:
+    name: Security Policy Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check Security Policy Files
+      run: |
+        echo "## 📋 Security Policy Compliance Check" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check for required security files
+        files=(
+          "SECURITY.md"
+          ".github/SECURITY.md"
+          "security/policies/information-security-policy.md"
+          "security/incident-response-plan.md"
+          ".github/dependabot.yml"
+          ".github/workflows/security-sast.yml"
+          ".github/workflows/security-dast.yml"
+        )
+        
+        echo "| File | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+        
+        for file in "${files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "| $file | ✅ Present |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| $file | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 Recommendations" >> $GITHUB_STEP_SUMMARY
+        echo "- Ensure all security policy files are present and up-to-date" >> $GITHUB_STEP_SUMMARY
+        echo "- Review and update security policies regularly" >> $GITHUB_STEP_SUMMARY
+        echo "- Train team members on security procedures" >> $GITHUB_STEP_SUMMARY

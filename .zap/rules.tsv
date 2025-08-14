@@ -1,0 +1,110 @@
+# ZAP Security Scan Rules Configuration
+# Format: RULE_ID	ACTION	DESCRIPTION
+# Actions: IGNORE, WARN, FAIL
+
+# Content Security Policy
+10038	WARN	Content Security Policy (CSP) Header Not Set
+10063	WARN	Permissions Policy Header Not Set
+
+# Security Headers
+10021	WARN	X-Content-Type-Options Header Missing
+10020	WARN	X-Frame-Options Header Missing
+10016	WARN	Web Browser XSS Protection Not Enabled
+10017	WARN	Cross-Domain JavaScript Source File Inclusion
+10019	WARN	Content-Type Header Missing
+10015	WARN	Incomplete or No Cache-control and Pragma HTTP Header Set
+
+# Information Disclosure
+10009	WARN	In Page Banner Information Leak
+10024	WARN	Information Disclosure - Sensitive Information in URL
+10025	WARN	Information Disclosure - Sensitive Information in HTTP Referrer Header
+10027	WARN	Information Disclosure - Suspicious Comments
+
+# Cookie Security
+10010	WARN	Cookie No HttpOnly Flag
+10011	WARN	Cookie Without Secure Flag
+10012	WARN	Cookie Without SameSite Attribute
+
+# Authentication & Session Management
+10040	FAIL	Secure Pages Include Mixed Content
+10041	FAIL	HTTP to HTTPS Insecure Transition in Form Post
+10042	FAIL	HTTPS to HTTP Insecure Transition in Form Post
+10043	FAIL	User Controllable JavaScript Event (XSS)
+
+# Input Validation
+40012	FAIL	Cross Site Scripting (Reflected)
+40013	FAIL	Cross Site Scripting (Persistent)
+40014	FAIL	Cross Site Scripting (Persistent) - Prime
+40016	FAIL	Cross Site Scripting (Persistent) - Spider
+40017	FAIL	Cross Site Scripting (Persistent) - Active Scan Rule
+
+# SQL Injection
+40018	FAIL	SQL Injection
+40019	FAIL	SQL Injection - MySQL
+40020	FAIL	SQL Injection - Hypersonic SQL
+40021	FAIL	SQL Injection - Oracle
+40022	FAIL	SQL Injection - PostgreSQL
+
+# Path Traversal
+6	FAIL	Path Traversal
+
+# Command Injection
+90020	FAIL	Remote OS Command Injection
+
+# Server-Side Request Forgery
+40009	FAIL	Server Side Request Forgery
+
+# XML External Entity
+90023	FAIL	XML External Entity Attack
+
+# Insecure Direct Object References
+40008	FAIL	Parameter Tampering
+
+# Security Misconfiguration
+10023	WARN	Information Disclosure - Debug Error Messages
+10028	WARN	Open Redirect
+10029	WARN	Cookie Poisoning
+10030	WARN	User Controllable Charset
+
+# Sensitive Data Exposure
+10031	WARN	User Controllable HTML Element Attribute (Potential XSS)
+10032	WARN	Viewstate Scanner
+10033	WARN	Directory Browsing
+10034	WARN	Heartbleed OpenSSL Vulnerability
+
+# Broken Access Control
+10035	FAIL	Strict-Transport-Security Header Not Set
+10036	FAIL	Server Leaks Version Information via "Server" HTTP Response Header Field
+10037	FAIL	Server Leaks Information via "X-Powered-By" HTTP Response Header Field
+
+# Known Vulnerabilities
+10039	FAIL	Web Application Potentially Vulnerable to Clickjacking
+
+# Logging and Monitoring
+10044	WARN	Big Redirect Detected (Potential Sensitive Information Leak)
+10045	WARN	Source Code Disclosure - /WEB-INF folder
+10046	WARN	Source Code Disclosure - Git
+10047	WARN	Source Code Disclosure - SVN
+
+# Custom Rules for GeoMiner
+# Geological Data Protection
+90100	FAIL	Geological Data Exposure
+90101	WARN	Mining Coordinates in Response
+90102	WARN	Sensitive Geological Information Leak
+
+# API Security
+90200	FAIL	API Key Exposure
+90201	FAIL	Unprotected API Endpoint
+90202	WARN	API Rate Limiting Not Implemented
+90203	WARN	API Versioning Issues
+
+# File Upload Security
+90300	FAIL	Unrestricted File Upload
+90301	WARN	File Upload Size Limit Not Set
+90302	WARN	File Type Validation Missing
+
+# Authentication Bypass
+90400	FAIL	Authentication Bypass
+90401	FAIL	Session Fixation
+90402	WARN	Weak Session ID Generation
+90403	WARN	Session Timeout Not Set
