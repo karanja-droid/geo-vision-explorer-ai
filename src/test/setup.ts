@@ -51,31 +51,33 @@ vi.mock('mapbox-gl', () => ({
   accessToken: '',
 }));
 
-// Mock Recharts
+// Mock Recharts - using createElement to avoid JSX in .ts file
+const createElement = (tag: string, props: any, children?: any) => ({ tag, props, children });
+
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => children,
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
-  Bar: () => <div data-testid="bar" />,
-  XAxis: () => <div data-testid="x-axis" />,
-  YAxis: () => <div data-testid="y-axis" />,
-  CartesianGrid: () => <div data-testid="cartesian-grid" />,
-  Tooltip: () => <div data-testid="tooltip" />,
-  Legend: () => <div data-testid="legend" />,
-  PieChart: ({ children }: any) => <div data-testid="pie-chart">{children}</div>,
-  Pie: () => <div data-testid="pie" />,
-  Cell: () => <div data-testid="cell" />,
-  LineChart: ({ children }: any) => <div data-testid="line-chart">{children}</div>,
-  Line: () => <div data-testid="line" />,
-  AreaChart: ({ children }: any) => <div data-testid="area-chart">{children}</div>,
-  Area: () => <div data-testid="area" />,
-  ScatterChart: ({ children }: any) => <div data-testid="scatter-chart">{children}</div>,
-  Scatter: () => <div data-testid="scatter" />,
-  RadarChart: ({ children }: any) => <div data-testid="radar-chart">{children}</div>,
-  Radar: () => <div data-testid="radar" />,
-  PolarGrid: () => <div data-testid="polar-grid" />,
-  PolarAngleAxis: () => <div data-testid="polar-angle-axis" />,
-  PolarRadiusAxis: () => <div data-testid="polar-radius-axis" />,
-  ComposedChart: ({ children }: any) => <div data-testid="composed-chart">{children}</div>,
+  BarChart: ({ children }: any) => createElement('div', { 'data-testid': 'bar-chart' }, children),
+  Bar: () => createElement('div', { 'data-testid': 'bar' }),
+  XAxis: () => createElement('div', { 'data-testid': 'x-axis' }),
+  YAxis: () => createElement('div', { 'data-testid': 'y-axis' }),
+  CartesianGrid: () => createElement('div', { 'data-testid': 'cartesian-grid' }),
+  Tooltip: () => createElement('div', { 'data-testid': 'tooltip' }),
+  Legend: () => createElement('div', { 'data-testid': 'legend' }),
+  PieChart: ({ children }: any) => createElement('div', { 'data-testid': 'pie-chart' }, children),
+  Pie: () => createElement('div', { 'data-testid': 'pie' }),
+  Cell: () => createElement('div', { 'data-testid': 'cell' }),
+  LineChart: ({ children }: any) => createElement('div', { 'data-testid': 'line-chart' }, children),
+  Line: () => createElement('div', { 'data-testid': 'line' }),
+  AreaChart: ({ children }: any) => createElement('div', { 'data-testid': 'area-chart' }, children),
+  Area: () => createElement('div', { 'data-testid': 'area' }),
+  ScatterChart: ({ children }: any) => createElement('div', { 'data-testid': 'scatter-chart' }, children),
+  Scatter: () => createElement('div', { 'data-testid': 'scatter' }),
+  RadarChart: ({ children }: any) => createElement('div', { 'data-testid': 'radar-chart' }, children),
+  Radar: () => createElement('div', { 'data-testid': 'radar' }),
+  PolarGrid: () => createElement('div', { 'data-testid': 'polar-grid' }),
+  PolarAngleAxis: () => createElement('div', { 'data-testid': 'polar-angle-axis' }),
+  PolarRadiusAxis: () => createElement('div', { 'data-testid': 'polar-radius-axis' }),
+  ComposedChart: ({ children }: any) => createElement('div', { 'data-testid': 'composed-chart' }, children),
 }));
 
 // Mock Supabase client

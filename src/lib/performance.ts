@@ -253,7 +253,8 @@ export class PerformanceMonitor {
   }
 
   // Get performance summary
-  getSummary(timeWindow: number = 300000): { // 5 minutes default
+  getSummary(timeWindow: number = 300000) {
+    // 5 minutes default
     const cutoff = Date.now() - timeWindow;
     const recentMetrics = this.metrics.filter(m => m.timestamp > cutoff);
     

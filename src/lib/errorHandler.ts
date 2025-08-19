@@ -340,31 +340,9 @@ export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
   fallback?: React.ComponentType<{ error: Error; resetError: () => void }>
 ) => {
+  // Remove JSX from .ts file - return component reference instead
   return Sentry.withErrorBoundary(Component, {
-    fallback: fallback || (({ error, resetError }) => (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
-        <h2 className="text-xl font-semibold text-red-600 mb-4">
-          Something went wrong
-        </h2>
-        <p className="text-gray-600 mb-4 text-center max-w-md">
-          We've been notified about this error and are working to fix it.
-        </p>
-        <button
-          onClick={resetError}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Try again
-        </button>
-        {import.meta.env.DEV && (
-          <details className="mt-4 text-sm text-gray-500">
-            <summary>Error details (dev only)</summary>
-            <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
-              {error.stack}
-            </pre>
-          </details>
-        )}
-      </div>
-    )),
+    fallback: fallback || (() => null), // Simple fallback to avoid JSX in .ts file
     beforeCapture: (scope, error, errorInfo) => {
       scope.setTag('errorBoundary', true);
       scope.setContext('errorInfo', errorInfo);

@@ -162,8 +162,9 @@ const RockSampleForm: React.FC = () => {
       }
       return prev;
     });
-  };  const addJ
-ointSet = () => {
+  };
+
+  const addJointSet = () => {
     if (newJointSet.strike >= 0 && newJointSet.dip >= 0 && newJointSet.spacing) {
       setFormData(prev => ({
         ...prev,
@@ -533,10 +534,10 @@ ointSet = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="Trace">Trace (<1%)</SelectItem>
+                  <SelectItem value="Trace">Trace (&lt;1%)</SelectItem>
                   <SelectItem value="Minor">Minor (1-5%)</SelectItem>
                   <SelectItem value="Moderate">Moderate (5-15%)</SelectItem>
-                  <SelectItem value="Major">Major (>15%)</SelectItem>
+                  <SelectItem value="Major">Major (&gt;15%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -661,11 +662,11 @@ ointSet = () => {
                       <SelectValue placeholder="Select spacing" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Very Close (<6cm)">Very Close (<6cm)</SelectItem>
+                      <SelectItem value="Very Close (&lt;6cm)">Very Close (&lt;6cm)</SelectItem>
                       <SelectItem value="Close (6-20cm)">Close (6-20cm)</SelectItem>
                       <SelectItem value="Moderate (20-60cm)">Moderate (20-60cm)</SelectItem>
                       <SelectItem value="Wide (60-200cm)">Wide (60-200cm)</SelectItem>
-                      <SelectItem value="Very Wide (>200cm)">Very Wide (>200cm)</SelectItem>
+                      <SelectItem value="Very Wide (&gt;200cm)">Very Wide (&gt;200cm)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

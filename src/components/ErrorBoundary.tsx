@@ -1,15 +1,8 @@
-/**
- * Enhanced Error Boundary Component
- * 
- * Catches JavaScript errors anywhere in the child component tree,
- * logs those errors, and displays a fallback UI.
- */
-
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -36,7 +29,6 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    // Update state so the next render will show the fallback UI
     return {
       hasError: true,
       error,
@@ -45,49 +37,17 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error details
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
-    // Update state with error info
     this.setState({
       error,
       errorInfo
     });
 
-    // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // Log to external service (if configured)
-    this.logErrorToService(error, errorInfo);
   }
-
-  private logErrorToService = (error: Error, errorInfo: ErrorInfo) => {
-    try {
-      // Log to console with structured data
-      const errorData = {
-        errorId: this.state.errorId,
-        message: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack,
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        environment: import.meta.env.MODE
-      };
-
-      console.error('Structured Error Log:', errorData);
-
-      // In production, you could send to error tracking service
-      if (import.meta.env.PROD) {
-        // Example: Sentry, LogRocket, etc.
-        // Sentry.captureException(error, { extra: errorData });
-      }
-    } catch (loggingError) {
-      console.error('Failed to log error:', loggingError);
-    }
-  };
 
   private handleRetry = () => {
     this.setState({
@@ -102,48 +62,12 @@ class ErrorBoundary extends Component<Props, State> {
     window.location.href = '/';
   };
 
-  private handleReportBug = () => {
-    const errorData = {
-      errorId: this.state.errorId,
-      message: this.state.error?.message,
-      stack: this.state.error?.stack,
-      componentStack: this.state.errorInfo?.componentStack,
-      url: window.location.href,
-      timestamp: new Date().toISOString()
-    };
-
-    // Create GitHub issue URL or email
-    const issueBody = encodeURIComponent(`
-**Error ID**: ${errorData.errorId}
-**URL**: ${errorData.url}
-**Timestamp**: ${errorData.timestamp}
-
-**Error Message**: 
-${errorData.message}
-
-**Stack Trace**:
-\`\`\`
-${errorData.stack}
-\`\`\`
-
-**Component Stack**:
-\`\`\`
-${errorData.componentStack}
-\`\`\`
-    `);
-
-    const githubUrl = `https://github.com/karanja-droid/geo-vision-explorer-ai/issues/new?title=Error%20Report%20${errorData.errorId}&body=${issueBody}`;
-    window.open(githubUrl, '_blank');
-  };
-
   render() {
     if (this.state.hasError) {
-      // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      // Default error UI
       return (
         <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl">
@@ -172,13 +96,8 @@ ${errorData.componentStack}
                   <Home className="h-4 w-4" />
                   Go Home
                 </Button>
-                <Button onClick={this.handleReportBug} variant="outline" className="flex items-center gap-2">
-                  <Bug className="h-4 w-4" />
-                  Report Bug
-                </Button>
               </div>
 
-              {/* Development mode: Show detailed error */}
               {import.meta.env.DEV && this.state.error && (
                 <details className="mt-4">
                   <summary className="cursor-pointer text-sm font-medium">
@@ -191,24 +110,9 @@ ${errorData.componentStack}
                         {this.state.error.stack}
                       </pre>
                     </div>
-                    {this.state.errorInfo && (
-                      <div>
-                        <h4 className="font-semibold text-sm">Component Stack:</h4>
-                        <pre className="text-xs bg-muted p-2 rounded overflow-auto">
-                          {this.state.errorInfo.componentStack}
-                        </pre>
-                      </div>
-                    )}
                   </div>
                 </details>
               )}
-
-              <div className="text-sm text-muted-foreground">
-                <p>
-                  If this error persists, please report it using the "Report Bug" button above.
-                  Include the Error ID and describe what you were doing when the error occurred.
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>
