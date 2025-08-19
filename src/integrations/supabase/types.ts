@@ -277,6 +277,7 @@ export type Database = {
           id: string
           location: unknown
           name: string
+          org_id: string | null
           project_id: string
           site_type: Database["public"]["Enums"]["site_type"]
           updated_at: string
@@ -290,6 +291,7 @@ export type Database = {
           id?: string
           location: unknown
           name: string
+          org_id?: string | null
           project_id: string
           site_type: Database["public"]["Enums"]["site_type"]
           updated_at?: string
@@ -303,6 +305,7 @@ export type Database = {
           id?: string
           location?: unknown
           name?: string
+          org_id?: string | null
           project_id?: string
           site_type?: Database["public"]["Enums"]["site_type"]
           updated_at?: string
@@ -314,6 +317,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "exploration_sites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "exploration_sites_project_id_fkey"
@@ -429,6 +439,90 @@ export type Database = {
           },
         ]
       }
+      modules: {
+        Row: {
+          config: Json | null
+          created_at: string
+          description: string | null
+          enabled: boolean
+          exports: string[] | null
+          id: string
+          key: string
+          name: string
+          reports: string[] | null
+          routes: string[] | null
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          exports?: string[] | null
+          id?: string
+          key: string
+          name: string
+          reports?: string[] | null
+          routes?: string[] | null
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          exports?: string[] | null
+          id?: string
+          key?: string
+          name?: string
+          reports?: string[] | null
+          routes?: string[] | null
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          country_code: string
+          created_at: string
+          domain: string | null
+          id: string
+          name: string
+          region: string
+          settings: Json | null
+          slug: string
+          subscription_tier: string
+          updated_at: string
+        }
+        Insert: {
+          country_code?: string
+          created_at?: string
+          domain?: string | null
+          id?: string
+          name: string
+          region?: string
+          settings?: Json | null
+          slug: string
+          subscription_tier?: string
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          domain?: string | null
+          id?: string
+          name?: string
+          region?: string
+          settings?: Json | null
+          slug?: string
+          subscription_tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       predictions: {
         Row: {
           confidence_score: number | null
@@ -495,6 +589,7 @@ export type Database = {
           department: string | null
           display_name: string | null
           id: string
+          org_id: string | null
           phone: string | null
           phone_encrypted: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -508,6 +603,7 @@ export type Database = {
           department?: string | null
           display_name?: string | null
           id?: string
+          org_id?: string | null
           phone?: string | null
           phone_encrypted?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -521,13 +617,22 @@ export type Database = {
           department?: string | null
           display_name?: string | null
           id?: string
+          org_id?: string | null
           phone?: string | null
           phone_encrypted?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       projects: {
         Row: {
@@ -537,13 +642,16 @@ export type Database = {
           coordinates: unknown | null
           country: string | null
           created_at: string
+          data_classification: string | null
           description: string | null
           end_date: string | null
           geology_type: string | null
           id: string
           name: string
+          org_id: string | null
           owner_id: string
           province: string | null
+          region: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           target_minerals: string[] | null
@@ -556,13 +664,16 @@ export type Database = {
           coordinates?: unknown | null
           country?: string | null
           created_at?: string
+          data_classification?: string | null
           description?: string | null
           end_date?: string | null
           geology_type?: string | null
           id?: string
           name: string
+          org_id?: string | null
           owner_id: string
           province?: string | null
+          region?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           target_minerals?: string[] | null
@@ -575,19 +686,29 @@ export type Database = {
           coordinates?: unknown | null
           country?: string | null
           created_at?: string
+          data_classification?: string | null
           description?: string | null
           end_date?: string | null
           geology_type?: string | null
           id?: string
           name?: string
+          org_id?: string | null
           owner_id?: string
           province?: string | null
+          region?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           target_minerals?: string[] | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_owner_id_fkey"
             columns: ["owner_id"]
@@ -1413,6 +1534,10 @@ export type Database = {
       geomfromewkt: {
         Args: { "": string }
         Returns: unknown
+      }
+      get_current_user_org_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
