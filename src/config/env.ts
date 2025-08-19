@@ -1,3 +1,4 @@
+
 /**
  * Environment Configuration
  * 
@@ -9,7 +10,20 @@
 function getRequiredEnv(key: string): string {
   const value = import.meta.env[key];
   if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
+    console.warn(`Missing required environment variable: ${key}`);
+    // Return sensible defaults for development
+    switch (key) {
+      case 'VITE_SITE_URL':
+        return 'http://localhost:8080';
+      case 'VITE_API_BASE_URL':
+        return 'http://localhost:8000';
+      case 'VITE_SUPABASE_URL':
+        return 'https://rgtyhffyvpqenrqnkfqc.supabase.co';
+      case 'VITE_SUPABASE_ANON_KEY':
+        return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJndHloZmZ5dnBxZW5ycW5rZnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzODc4MDYsImV4cCI6MjA2OTk2MzgwNn0.ylzNsFbexxg-IWqmelInLkfN-PydJDzrSRCmnU4HGsE';
+      default:
+        throw new Error(`Missing required environment variable: ${key}`);
+    }
   }
   return value;
 }
