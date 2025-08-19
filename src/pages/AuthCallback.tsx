@@ -5,7 +5,7 @@ import { LoadingSpinner } from '@/components/ui/loading';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
-import { toast } from '@/components/ui/enhanced-toast';
+import { useToast } from '@/hooks/use-toast';
 
 type CallbackStatus = 'loading' | 'success' | 'error';
 
@@ -14,6 +14,7 @@ export const AuthCallback: React.FC = () => {
   const [error, setError] = useState<string>('');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -36,7 +37,8 @@ export const AuthCallback: React.FC = () => {
           if (user.email_confirmed_at) {
             setStatus('success');
             
-            toast.success('Email verified successfully!', {
+            toast({
+              title: 'Email verified successfully!',
               description: 'Your account has been verified. You can now access all features.',
             });
 
@@ -72,7 +74,9 @@ export const AuthCallback: React.FC = () => {
 
             if (sessionData.user?.email_confirmed_at) {
               setStatus('success');
-              toast.success('Email verified successfully!');
+              toast({
+                title: 'Email verified successfully!',
+              });
               
               const redirectTo = searchParams.get('redirect') || '/dashboard';
               setTimeout(() => {
@@ -95,7 +99,7 @@ export const AuthCallback: React.FC = () => {
     };
 
     handleAuthCallback();
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, toast]);
 
   const handleReturnToAuth = () => {
     navigate('/auth', { replace: true });

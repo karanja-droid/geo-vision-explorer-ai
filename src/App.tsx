@@ -8,8 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Navigation from "@/components/Navigation";
-import { HelpButton } from "@/components/help/HelpButton";
-import { HelpSearchShortcut } from "@/components/help/HelpSearchDialog";
+// Help components removed due to missing dependencies
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -27,7 +26,7 @@ import EmailTest from "./pages/EmailTest";
 import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 import { PricingPage } from "./components/PricingPage";
-import "@/styles/contextual-help.css";
+// Contextual help styles removed
 
 const queryClient = new QueryClient();
 
@@ -50,82 +49,82 @@ const App = () => (
               <ProtectedRoute>
                 <Navigation />
                 <Dashboard />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/projects" element={
               <ProtectedRoute>
                 <Navigation />
                 <Projects />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/sites" element={
               <ProtectedRoute>
                 <Navigation />
                 <Sites />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <Navigation />
                 <Analytics />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/collaboration" element={
               <ProtectedRoute>
                 <Navigation />
                 <Collaboration />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/data-entry" element={
               <ProtectedRoute>
                 <Navigation />
                 <DataEntry />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/executive" element={
               <ProtectedRoute>
                 <Navigation />
                 <Executive />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/geologist" element={
               <ProtectedRoute>
                 <Navigation />
                 <Geologist />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/driller" element={
               <ProtectedRoute>
                 <Navigation />
                 <Driller />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Navigation />
                 <Settings />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="/security" element={
               <ProtectedRoute>
                 <Navigation />
                 <Security />
-                <HelpButton />
+                {/* HelpButton removed */}
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <HelpSearchShortcut />
+          {/* HelpSearchShortcut removed */}
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>

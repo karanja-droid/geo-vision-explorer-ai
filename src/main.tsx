@@ -1,9 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { initializeHelpContent } from './lib/help-content-database'
 
-// Initialize help content when app starts
-initializeHelpContent();
+// Help content removed due to missing dependencies
 
 createRoot(document.getElementById("root")!).render(<App />);

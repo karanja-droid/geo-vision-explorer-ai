@@ -11,7 +11,6 @@ export interface Module {
   routes: string[];
   exports: string[];
   reports: string[];
-  permissions: Record<string, any>;
   config: Record<string, any>;
   created_at: string;
   updated_at: string;
@@ -37,7 +36,13 @@ export function useModules() {
 
       if (error) throw error;
 
-      setModules(data || []);
+      // Cast the data to match our interface
+      const modulesData = (data || []).map(item => ({
+        ...item,
+        config: typeof item.config === 'object' ? item.config as Record<string, any> : {}
+      }));
+
+      setModules(modulesData);
     } catch (error) {
       console.error('Failed to fetch modules:', error);
     } finally {
