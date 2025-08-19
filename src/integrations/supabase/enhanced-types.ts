@@ -43,11 +43,11 @@ export type ActivityLogInsert = Tables['activity_logs']['Insert'];
 export type ActivityLogUpdate = Tables['activity_logs']['Update'];
 
 // Enum types
-export type AppRole = Enums['app_role'];
+export type UserRole = Enums['user_role'];
 export type ProjectStatus = Enums['project_status'];
 export type PredictionStatus = Enums['prediction_status'];
 export type SubscriptionTier = Enums['subscription_tier'];
-export type SubscriptionStatus = Enums['subscription_status'];
+export type FeatureModule = Enums['feature_module'];
 
 // Enhanced types with relationships
 export interface ProjectWithSites extends Project {
@@ -81,7 +81,7 @@ export interface MineralDepositWithPredictions extends MineralDeposit {
 export interface ProfileWithSubscription extends Profile {
   subscription: Subscription | null;
   role_permissions: {
-    role: AppRole;
+    role: UserRole;
     permissions: string[];
   };
 }
@@ -270,7 +270,7 @@ export interface FeatureFlagConfig {
 export interface FeatureFlagContext {
   user_id: string;
   subscription_tier: SubscriptionTier;
-  user_role: AppRole;
+  user_role: UserRole;
   project_id?: string;
   additional_context?: Record<string, any>;
 }
@@ -373,36 +373,4 @@ export type QueryBuilder<T> = {
   order: (column: keyof T, ascending?: boolean) => QueryBuilder<T>;
   limit: (count: number) => QueryBuilder<T>;
   offset: (count: number) => QueryBuilder<T>;
-};
-
-export default {
-  // Re-export all types for convenience
-  Project,
-  ExplorationSite,
-  MineralDeposit,
-  Prediction,
-  Profile,
-  Subscription,
-  FeatureFlag,
-  ActivityLog,
-  ProjectWithSites,
-  ExplorationSiteWithDeposits,
-  MineralDepositWithPredictions,
-  ProfileWithSubscription,
-  PredictionWithRelations,
-  ApiResponse,
-  PaginatedResponse,
-  SearchFilters,
-  SortOptions,
-  RealtimePayload,
-  CollaborationEvent,
-  ProjectMetrics,
-  SiteMetrics,
-  UserMetrics,
-  FeatureFlagConfig,
-  FeatureFlagContext,
-  SecurityEvent,
-  AuditLogEntry,
-  GeologicalSample,
-  GeophysicalData,
 };

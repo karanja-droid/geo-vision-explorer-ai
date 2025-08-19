@@ -67,11 +67,10 @@ export class RedisService {
         redisOptions: {
           password: config.password,
           keyPrefix: config.keyPrefix || 'geovision:',
-          retryDelayOnFailover: config.retryDelayOnFailover || 100,
           maxRetriesPerRequest: config.maxRetriesPerRequest || 3,
           lazyConnect: true
         }
-      });
+      }) as any;
     } else {
       // Single Redis instance configuration
       this.client = new Redis({
@@ -80,7 +79,6 @@ export class RedisService {
         password: config.password,
         db: config.db || 0,
         keyPrefix: config.keyPrefix || 'geovision:',
-        retryDelayOnFailover: config.retryDelayOnFailover || 100,
         maxRetriesPerRequest: config.maxRetriesPerRequest || 3,
         lazyConnect: true
       });
@@ -435,7 +433,7 @@ export class RedisService {
   async geodist(key: string, member1: string, member2: string, unit: 'km' | 'm' = 'km'): Promise<number | null> {
     try {
       const distance = await this.client.geodist(key, member1, member2, unit);
-      return distance ? parseFloat(distance) : null;
+      return distance ? parseFloat(String(distance)) : null;
     } catch (error) {
       console.error(`Redis GEODIST error for key ${key}:`, error);
       return null;
@@ -541,10 +539,10 @@ export class RedisService {
 
   async getSession(sessionId: string): Promise<any | null> {
     try {
-      const session = await this.getJSON(`session:${sessionId}`);
-      if (session) {
+      const session = await this.getJSON<any>(`session:${sessionId}`);
+      if (session && typeof session === 'object') {
         // Update last accessed time
-        session.lastAccessed = Date.now();
+        (session as any).lastAccessed = Date.now();
         await this.setJSON(`session:${sessionId}`, session);
       }
       return session;
@@ -556,9 +554,9 @@ export class RedisService {
 
   async destroySession(sessionId: string): Promise<boolean> {
     try {
-      const session = await this.getJSON(`session:${sessionId}`);
-      if (session) {
-        await this.srem(`user:${session.userId}:sessions`, sessionId);
+      const session = await this.getJSON<any>(`session:${sessionId}`);
+      if (session && typeof session === 'object' && (session as any).userId) {
+        await this.srem(`user:${(session as any).userId}:sessions`, sessionId);
       }
       await this.del(`session:${sessionId}`);
       return true;
