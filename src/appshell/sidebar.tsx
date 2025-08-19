@@ -126,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onToggle?.(newState);
     trackSidebarInteraction(
       newState ? 'collapse' : 'expand',
-      newState ? 'collapsed' : 'expanded'
+      { state: newState ? 'collapsed' : 'expanded' }
     );
   }, [isCollapsed, onToggle]);
 
@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     } else if (item.path) {
       // Navigate to path
       navigate(item.path);
-      trackNavigation(item.path, 'click');
+      trackNavigation(item.path, { source: 'click' });
     } else if (item.action) {
       // Execute custom action
       item.action();

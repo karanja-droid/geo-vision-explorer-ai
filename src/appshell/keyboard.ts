@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Keyboard shortcuts and command palette functionality
  */

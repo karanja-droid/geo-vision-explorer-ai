@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/enhanced-toast';
+import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/ui/loading';
 
 // Enhanced validation schemas

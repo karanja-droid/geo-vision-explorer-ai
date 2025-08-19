@@ -32,7 +32,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
 
   const handleNavigation = (path: string) => {
     navigate(path);
-    trackNavigation(path, 'breadcrumb');
+    trackNavigation(path, { source: 'breadcrumb' });
   };
 
   return (

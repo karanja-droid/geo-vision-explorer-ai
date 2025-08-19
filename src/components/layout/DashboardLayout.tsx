@@ -37,7 +37,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/components/ThemeProvider';
-import { toast } from '@/components/ui/enhanced-toast';
+import { toast } from 'sonner';
 
 interface NavigationItem {
   title: string;

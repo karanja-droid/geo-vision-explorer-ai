@@ -81,13 +81,15 @@ class FeatureFlagProvider {
   }
 
   private loadFromEnvironment() {
-    // Load from environment variables if available
-    Object.keys(this.flags).forEach(key => {
-      const envValue = process.env[`REACT_APP_${key}`];
-      if (envValue !== undefined) {
-        this.flags[key as keyof FeatureFlags] = envValue.toLowerCase() === 'true';
-      }
-    });
+    // Load from environment variables if available (Vite uses import.meta.env)
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      Object.keys(this.flags).forEach(key => {
+        const envValue = import.meta.env[`VITE_${key}`];
+        if (envValue !== undefined) {
+          this.flags[key as keyof FeatureFlags] = envValue.toLowerCase() === 'true';
+        }
+      });
+    }
   }
 
   // Get a specific feature flag
@@ -124,8 +126,8 @@ class FeatureFlagProvider {
       const { supabase } = await import('@/integrations/supabase/client');
       const { data, error } = await supabase
         .from('feature_flags')
-        .select('*')
-        .eq('is_active', true);
+        .select('name, enabled')
+        .eq('enabled', true);
 
       if (error) {
         console.warn('Failed to load feature flags from database:', error);
@@ -133,8 +135,8 @@ class FeatureFlagProvider {
       }
 
       data?.forEach(flag => {
-        if (flag.flag_name in this.flags) {
-          this.flags[flag.flag_name as keyof FeatureFlags] = flag.is_enabled;
+        if (flag.name in this.flags) {
+          this.flags[flag.name as keyof FeatureFlags] = flag.enabled;
         }
       });
 

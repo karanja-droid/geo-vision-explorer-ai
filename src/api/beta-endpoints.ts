@@ -544,10 +544,4 @@ export const betaRoutes = {
     }
   }
 };
-
-export {
-  BetaUsersAPI,
-  BetaFeedbackAPI,
-  BetaMetricsAPI,
-  BetaAnalyticsAPI
-};
+

@@ -47,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleSearch = useCallback((query: string) => {
     if (query.trim()) {
-      trackSearch(query, 0, 'global');
+      trackSearch(query, 0, { category: 'global' });
       // Implement global search logic here
       console.log('Searching for:', query);
     }
@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   const handleThemeToggle = useCallback(() => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    trackUserInteraction('theme-toggle', 'toggle', newTheme);
+    trackUserInteraction('theme-toggle', 'toggle', { theme: newTheme });
   }, [theme, setTheme]);
 
   const handleSignOut = useCallback(() => {
@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleCommandPalette = useCallback(() => {
     onCommandPaletteOpen?.();
-    trackUserInteraction('command-palette', 'open', 'header-button');
+    trackUserInteraction('command-palette', 'open', { location: 'header-button' });
   }, [onCommandPaletteOpen]);
 
   return (
@@ -184,13 +184,13 @@ export const Header: React.FC<HeaderProps> = ({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-9 px-2 gap-2">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={user?.avatar_url} />
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
                   <AvatarFallback className="text-xs">
-                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium hidden sm:inline">
-                  {user?.full_name || user?.email?.split('@')[0] || 'User'}
+                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
                 </span>
                 <ChevronDown className="w-3 h-3" />
               </Button>
@@ -199,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium">
-                    {user?.full_name || 'User'}
+                    {user?.user_metadata?.full_name || 'User'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {user?.email}

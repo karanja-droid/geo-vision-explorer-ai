@@ -174,7 +174,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     // Track analytics
     trackCommandPaletteUsage(command.title);
     if (query) {
-      trackSearch(query, filteredCommands.length, 'command_palette');
+      trackSearch(query, filteredCommands.length, { source: 'command_palette' });
     }
 
     // Execute the command
