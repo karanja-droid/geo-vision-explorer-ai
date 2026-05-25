@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: geo-vision-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: VITE_API_BASE_URL
+        value: https://api.beta.geo-miner.com
+
+  - type: pserv
+    name: geo-vision-worker
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.core.celery_app worker --loglevel=info
+
+  - type: pserv
+    name: geo-vision-beat
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.core.celery_app beat --loglevel=info
+
+  - type: redis
+    name: geo-vision-redis
+    plan: free
+
+databases:
+  - name: geo-vision-db
+    databaseName: geovision
+    user: geovision
+    plan: free
+    postgresVersion: "15"
